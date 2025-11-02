@@ -1,7 +1,5 @@
-﻿using System;
-using System.Windows;
+﻿using System.Windows;
 using Velopack;
-using Velopack.Sources;
 
 namespace NuvAI_FS
 {
@@ -10,42 +8,42 @@ namespace NuvAI_FS
         public MainWindow()
         {
             InitializeComponent();
+            this.Title = $"{AppInfo.ProductName} v{AppInfo.InformationalVersion}";
         }
 
-        private async void BuscarActualizacion_Click(object sender, RoutedEventArgs e)
+        private async void UpdateBtn_Click(object sender, RoutedEventArgs e)
         {
-            TxtEstado.Text = "Buscando actualizaciones...";
+            UpdateBtn.IsEnabled = false;
             try
             {
-                // IMPORTANTE: usa la URL completa del repo
-                // Para repo privado: pon el token en el 2º parámetro en lugar de ""
-                var source = new GithubSource(
-                    repoUrl: "https://github.com/OWNER/REPO",
-                    accessToken: "",
-                    prerelease: false
-                );
+                // La carpeta DEBE contener paquetes + releases.json (o releases.{channel}.json)
+                var mgr = new UpdateManager(@"C:\Temp\NuvAI LLC");
 
-                var mgr = new UpdateManager(source);
-
-                // Devuelve null si no hay update
-                var info = await mgr.CheckForUpdatesAsync(); // null => ya estás al día
-                if (info is null)
+                var info = await mgr.CheckForUpdatesAsync();
+                if (info == null)
                 {
-                    TxtEstado.Text = "Ya estás en la última versión.";
+                    MessageBox.Show("Ya estás en la última versión.");
                     return;
                 }
 
-                TxtEstado.Text = "Descargando actualización...";
-                await mgr.DownloadUpdatesAsync(info); // prepara delta/full según corresponda
-
-                TxtEstado.Text = "Aplicando y reiniciando...";
-                // Tiene conversión implícita de UpdateInfo -> VelopackAsset
-                mgr.ApplyUpdatesAndRestart(info);     // la app se cerrará y relanzará
+                await mgr.DownloadUpdatesAsync(info);
+                mgr.ApplyUpdatesAndRestart(info);
             }
             catch (Exception ex)
             {
-                TxtEstado.Text = $"Error al actualizar: {ex.Message}";
+                MessageBox.Show(ex.ToString(), "Error al actualizar");
+            }
+            finally
+            {
+                UpdateBtn.IsEnabled = true;
             }
         }
+
+
+        private void SubmitBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show($"Hola, {MainTxt.Text}");
+        }
+
     }
 }

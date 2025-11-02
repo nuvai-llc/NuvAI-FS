@@ -1,6 +1,5 @@
-﻿using System.Configuration;
-using System.Data;
-using System.Windows;
+﻿using System.Windows;
+using Velopack;
 
 namespace NuvAI_FS
 {
@@ -9,6 +8,11 @@ namespace NuvAI_FS
     /// </summary>
     public partial class App : Application
     {
+        public App()
+        {
+            VelopackApp.Build().Run();
+        }
+
     }
 
 }

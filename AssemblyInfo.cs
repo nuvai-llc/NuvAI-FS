@@ -1,10 +1,20 @@
+using System.Reflection;
+using System.Resources;
 using System.Windows;
 
+// ---- Metadatos opcionales (útiles para “Detalles del archivo”) ----
+[assembly: AssemblyTitle("NuvAI FS")]
+[assembly: AssemblyCompany("NuvAI LLC")]
+[assembly: AssemblyProduct("NuvAI FS")]
+
+// ---- Versión unificada (edita solo aquí) ----
+[assembly: AssemblyVersion("1.0.2.0")]            // CLR/bindings
+[assembly: AssemblyFileVersion("1.0.2.0")]        // Versión de archivo
+[assembly: AssemblyInformationalVersion("1.0.2")] // SemVer visible (UI, logs)
+[assembly: NeutralResourcesLanguage("es-ES")]
+
+// ---- Lo que ya tenías ----
 [assembly: ThemeInfo(
-    ResourceDictionaryLocation.None,            //where theme specific resource dictionaries are located
-                                                //(used if a resource is not found in the page,
-                                                // or application resource dictionaries)
-    ResourceDictionaryLocation.SourceAssembly   //where the generic resource dictionary is located
-                                                //(used if a resource is not found in the page,
-                                                // app, or any theme specific resource dictionaries)
+    ResourceDictionaryLocation.None,
+    ResourceDictionaryLocation.SourceAssembly
 )]
