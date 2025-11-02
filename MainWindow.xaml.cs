@@ -17,7 +17,7 @@ namespace NuvAI_FS
             try
             {
                 // La carpeta DEBE contener paquetes + releases.json (o releases.{channel}.json)
-                var mgr = new UpdateManager(@"C:\Temp\NuvAI LLC");
+                var mgr = new UpdateManager(@"https://pub-ad842211e29b462e97dfbfd5bb04312c.r2.dev/fs");
 
                 var info = await mgr.CheckForUpdatesAsync();
                 if (info == null)
