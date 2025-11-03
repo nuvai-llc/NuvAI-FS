@@ -4,7 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-
+	  
     <RootNamespace>NuvAI_FS</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -17,6 +17,8 @@
 
     <!-- Solo idiomas ES -->
     <SatelliteResourceLanguages>es;es-ES</SatelliteResourceLanguages>
+  
+	
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Ookii.Dialogs.Wpf" Version="5.0.1" />
     <PackageReference Include="Velopack" Version="0.0.1298" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
   </ItemGroup>
