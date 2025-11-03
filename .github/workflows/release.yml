@@ -4,13 +4,14 @@ on:
   push:
     tags:
       - "v*"
+      - "V*"
 
 jobs:
   build-pack-upload:
     runs-on: windows-latest
 
     env:
-      R2_PREFIX: fs
+      R2_PREFIX: ${{ vars.BASE_PREFIX }}
       SLN_PATH: .\NuvAI FS.sln
       PUBLISH_DIR: .\publish
       ICON_PATH: .\app.ico
@@ -29,7 +30,9 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
           if ($tag.StartsWith("v")) { $tag = $tag.Substring(1) }
-          echo "VERSION=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          if ([string]::IsNullOrWhiteSpace($tag)) { Write-Error "VERSION vacío"; exit 1 }
+          "VERSION=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "VERSION=$tag"
 
       - name: Setup .NET 8.x
         uses: actions/setup-dotnet@v4
@@ -40,8 +43,7 @@ jobs:
         shell: pwsh
         run: |
           dotnet tool install -g vpk
-          echo "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          # Comprobaciones válidas (vpk no tiene --version)
+          "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           dotnet tool list -g
           vpk --help
 
@@ -51,15 +53,15 @@ jobs:
           dotnet restore "$env:SLN_PATH"
           dotnet publish "$env:SLN_PATH" -c Release -r win-x64 -p:SelfContained=true -o "$env:PUBLISH_DIR"
 
-      - name: Velopack pack (usa versión del tag)
+      - name: Velopack pack (usa VERSION del tag)
         shell: pwsh
         run: |
           if (Test-Path "$env:VPK_OUT") { Remove-Item "$env:VPK_OUT" -Recurse -Force }
           New-Item "$env:VPK_OUT" -ItemType Directory | Out-Null
-
+      
           vpk pack `
             --packId "$env:PACK_ID" `
-            --packVersion "${{ env.VERSION }}" `
+            --packVersion "$env:VERSION" `
             --packDir "$env:PUBLISH_DIR" `
             --mainExe "$env:MAIN_EXE" `
             --packAuthors "$env:PACK_AUTHORS" `
@@ -69,11 +71,11 @@ jobs:
             --icon "$env:ICON_PATH" `
             --shortcuts Desktop,StartMenuRoot,StartMenu `
             --outputDir "$env:VPK_OUT"
-
+      
           Write-Host "Contenido vpk_out:"
           Get-ChildItem "$env:VPK_OUT" -Recurse
+        
 
-      # Solo credenciales (no instala CLI). El runner suele traer AWS CLI ya.
       - name: Configure AWS creds (R2 S3-compatible)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -82,7 +84,6 @@ jobs:
           aws-region: auto
           mask-aws-account-id: false
 
-      # Fallback: si 'aws' no existe, instalarlo con Chocolatey
       - name: Ensure AWS CLI is available (install if missing)
         shell: pwsh
         run: |
@@ -91,16 +92,15 @@ jobs:
           }
           aws --version
 
-      - name: Upload ALL artifacts to R2 (fs/)
+      - name: Upload ALL artifacts to R2
         shell: pwsh
         env:
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          R2_ENDPOINT_URL: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
         run: |
           aws s3 cp "$env:VPK_OUT\" "s3://$env:R2_BUCKET/$env:R2_PREFIX/" `
             --recursive --endpoint-url "$env:R2_ENDPOINT_URL" --no-progress
 
-          # (Opcional) forzar no-cache al manifiesto para que los updates se vean rápido
           $manifest = Join-Path $env:VPK_OUT "releases.win.json"
           if (Test-Path $manifest) {
             aws s3 cp "$manifest" "s3://$env:R2_BUCKET/$env:R2_PREFIX/release.tmp.json" `
