@@ -91,6 +91,37 @@ jobs:
           Write-Host "Contenido vpk_out:";
           Get-ChildItem "$env:VPK_OUT" -Recurse
 
+      # --- NUEVO: mover TODOS los artefactos a carpeta versionada y generar latest.json ---
+      - name: Prepare versioned folder layout
+        shell: pwsh
+        run: |
+          $ver = "$env:VERSION"
+          $dest = Join-Path $env:VPK_OUT $ver
+          if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
+          New-Item $dest -ItemType Directory | Out-Null
+          # Mueve todo lo generado por vpk (archivos y carpetas) a la subcarpeta de versión
+          Get-ChildItem $env:VPK_OUT -Force | Where-Object { $_.Name -ne $ver } | Move-Item -Destination $dest
+          Write-Host "Versioned folder: $dest"
+          Get-ChildItem $dest | Format-List FullName
+
+      - name: Generate latest.json (fs/latest.json)
+        shell: pwsh
+        run: |
+          $ver = "$env:VERSION"
+          $base = "https://pub-ad842211e29b462e97dfbfd5bb04312c.r2.dev/fs/releases/$ver"
+          $now  = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+          $obj = [ordered]@{
+            version     = $ver
+            baseUrl     = $base
+            publishedAt = $now
+            notes       = "Auto-release $ver"
+          }
+          $json = ($obj | ConvertTo-Json -Depth 5)
+          $latestPath = Join-Path $env:VPK_OUT "latest.json"
+          $json | Set-Content $latestPath -Encoding UTF8
+          Write-Host "latest.json:"
+          Get-Content $latestPath
+
       # No uses configure-aws-credentials (STS) con R2. Exporta claves estáticas sin token.
       - name: Configure AWS env for R2 (no STS)
         shell: pwsh
@@ -110,29 +141,28 @@ jobs:
           }
           aws --version
 
-      - name: Upload ALL artifacts to R2
+      - name: Upload versioned artifacts and latest.json to R2
         shell: pwsh
         env:
           R2_BUCKET: ${{ vars.R2_BUCKET }}                # ej: nuvai
           R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }} # ej: https://<account_id>.r2.cloudflarestorage.com
         run: |
-          aws s3 cp "$env:VPK_OUT\" "s3://$env:R2_BUCKET/$env:R2_PREFIX/" `
+          $ver = "$env:VERSION"
+          $verDir = Join-Path $env:VPK_OUT $ver
+
+          # Sube TODOS los artefactos versionados a fs/releases/<VERSION>/
+          aws s3 cp "$verDir\" "s3://$env:R2_BUCKET/$env:R2_PREFIX/releases/$ver/" `
             --recursive --endpoint-url "$env:R2_ENDPOINT_URL" --no-progress
 
-          # Forzar no-cache al manifiesto para que el cliente vea rápido la nueva versión
-          $manifest = Join-Path $env:VPK_OUT "releases.win.json"
-          if (Test-Path $manifest) {
-            aws s3 cp "$manifest" "s3://$env:R2_BUCKET/$env:R2_PREFIX/release.tmp.json" `
-              --endpoint-url "$env:R2_ENDPOINT_URL" --cache-control "no-cache" --content-type "application/json" --metadata-directive REPLACE
-            aws s3 mv "s3://$env:R2_BUCKET/$env:R2_PREFIX/release.tmp.json" "s3://$env:R2_BUCKET/$env:R2_PREFIX/releases.win.json" `
-              --endpoint-url "$env:R2_ENDPOINT_URL"
-          }
+          # Sube latest.json a fs/latest.json (sin cache)
+          aws s3 cp (Join-Path $env:VPK_OUT "latest.json") "s3://$env:R2_BUCKET/$env:R2_PREFIX/latest.json" `
+            --endpoint-url "$env:R2_ENDPOINT_URL" --cache-control "no-cache" --content-type "application/json" --metadata-directive REPLACE
 
       - name: List VPK output (debug)
         shell: pwsh
         run: |
           Write-Host "VPK_OUT=$env:VPK_OUT"
-          if (Test-Path "$env:VPK_OUT") { Get-ChildItem "$env:VPK_OUT" -Recurse | Format-List FullName } else { Write-Error "No existe VPK_OUT" }
+          Get-ChildItem "$env:VPK_OUT" -Recurse | Format-List FullName
 
       - name: Create GitHub Release (optional)
         uses: softprops/action-gh-release@v2
@@ -140,7 +170,8 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           files: |
-            ${{ env.VPK_OUT }}/*.exe
-            ${{ env.VPK_OUT }}/*.nupkg
-            ${{ env.VPK_OUT }}/releases*.json
+            ${{ env.VPK_OUT }}/**/*.exe
+            ${{ env.VPK_OUT }}/**/*.nupkg
+            ${{ env.VPK_OUT }}/**/releases*.json
+            ${{ env.VPK_OUT }}/latest.json
           token: ${{ secrets.GITHUB_TOKEN }}
