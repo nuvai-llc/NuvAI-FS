@@ -11,8 +11,10 @@ jobs:
     runs-on: windows-latest
 
     env:
-      R2_PREFIX: ${{ vars.BASE_PREFIX }}
+      # ---- Paths & metadata ----
+      R2_PREFIX: ${{ vars.BASE_PREFIX }}           # ej: fs  (acabará en s3://<bucket>/<prefix>/)
       SLN_PATH: .\NuvAI FS.sln
+      CSPROJ_PATH: .\NuvAI FS.csproj
       PUBLISH_DIR: .\publish
       ICON_PATH: .\app.ico
       MAIN_EXE: NuvAI FS.exe
@@ -47,11 +49,25 @@ jobs:
           dotnet tool list -g
           vpk --help
 
+      # (Opcional) Inyectar versión del tag en AssemblyInfo.cs si gestionas versión ahí
+      - name: Inject version into AssemblyInfo.cs
+        shell: pwsh
+        run: |
+          $ver = "$env:VERSION"
+          $asm = if (Test-Path ".\Properties\AssemblyInfo.cs") { ".\Properties\AssemblyInfo.cs" } else { ".\AssemblyInfo.cs" }
+          $ver3 = ($ver -replace '^([0-9]+\.[0-9]+\.[0-9]+).*$','$1')
+          $ver4 = "$ver3.0"
+          (Get-Content $asm) `
+              -replace '^\s*\[assembly:\s*AssemblyVersion\(".*?"\)\]\s*$', "[assembly: AssemblyVersion(`"$ver4`")]" `
+              -replace '^\s*\[assembly:\s*AssemblyFileVersion\(".*?"\)\]\s*$', "[assembly: AssemblyFileVersion(`"$ver4`")]" `
+              -replace '^\s*\[assembly:\s*AssemblyInformationalVersion\(".*?"\)\]\s*$', "[assembly: AssemblyInformationalVersion(`"$ver`")]" `
+              | Set-Content $asm -Encoding UTF8
+
       - name: Restore & Publish (Release, self-contained, win-x64)
         shell: pwsh
         run: |
           dotnet restore "$env:SLN_PATH"
-          dotnet publish "$env:SLN_PATH" -c Release -r win-x64 -p:SelfContained=true -o "$env:PUBLISH_DIR"
+          dotnet publish "$env:CSPROJ_PATH" -c Release -r win-x64 -p:SelfContained=true -o "$env:PUBLISH_DIR"
 
       - name: Velopack pack (usa VERSION del tag)
         shell: pwsh
@@ -72,13 +88,16 @@ jobs:
           Write-Host "Contenido vpk_out:";
           Get-ChildItem "$env:VPK_OUT" -Recurse
 
-      - name: Configure AWS creds (R2 S3-compatible)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-          mask-aws-account-id: false
+      # ⚠️ No usar configure-aws-credentials (STS) con R2. Exportar vars simples sin token.
+      - name: Configure AWS env for R2 (no STS)
+        shell: pwsh
+        run: |
+          "AWS_ACCESS_KEY_ID=${{ secrets.R2_ACCESS_KEY_ID }}"         | Out-File -FilePath $env:GITHUB_ENV -Append
+          "AWS_SECRET_ACCESS_KEY=${{ secrets.R2_SECRET_ACCESS_KEY }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "AWS_DEFAULT_REGION=us-east-1"                              | Out-File -FilePath $env:GITHUB_ENV -Append
+          "AWS_EC2_METADATA_DISABLED=true"                            | Out-File -FilePath $env:GITHUB_ENV -Append
+          "AWS_S3_FORCE_PATH_STYLE=true"                              | Out-File -FilePath $env:GITHUB_ENV -Append
+          "AWS_SESSION_TOKEN="                                        | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Ensure AWS CLI is available (install if missing)
         shell: pwsh
@@ -91,12 +110,13 @@ jobs:
       - name: Upload ALL artifacts to R2
         shell: pwsh
         env:
-          R2_BUCKET: ${{ vars.R2_BUCKET }}
-          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}                # ej: nuvai
+          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }} # ej: https://<account_id>.r2.cloudflarestorage.com
         run: |
           aws s3 cp "$env:VPK_OUT\" "s3://$env:R2_BUCKET/$env:R2_PREFIX/" `
             --recursive --endpoint-url "$env:R2_ENDPOINT_URL" --no-progress
 
+          # Forzar no-cache al manifiesto para que el cliente vea rápido la nueva versión
           $manifest = Join-Path $env:VPK_OUT "releases.win.json"
           if (Test-Path $manifest) {
             aws s3 cp "$manifest" "s3://$env:R2_BUCKET/$env:R2_PREFIX/release.tmp.json" `
