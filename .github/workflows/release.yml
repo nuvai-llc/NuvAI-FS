@@ -68,7 +68,7 @@ jobs:
             --noPortable `
             --icon "$env:ICON_PATH" `
             --shortcuts Desktop,StartMenuRoot,StartMenu `
-            --outDir "$env:VPK_OUT"
+            --outputDir "$env:VPK_OUT"
 
           Write-Host "Contenido vpk_out:"
           Get-ChildItem "$env:VPK_OUT" -Recurse
