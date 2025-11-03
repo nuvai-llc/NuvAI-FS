@@ -6,6 +6,9 @@ on:
       - "v*"
       - "V*"
 
+permissions:
+  contents: write   # necesario para crear/editar GitHub Releases
+
 jobs:
   build-pack-upload:
     runs-on: windows-latest
@@ -58,10 +61,10 @@ jobs:
           $ver3 = ($ver -replace '^([0-9]+\.[0-9]+\.[0-9]+).*$','$1')
           $ver4 = "$ver3.0"
           (Get-Content $asm) `
-              -replace '^\s*\[assembly:\s*AssemblyVersion\(".*?"\)\]\s*$', "[assembly: AssemblyVersion(`"$ver4`")]" `
-              -replace '^\s*\[assembly:\s*AssemblyFileVersion\(".*?"\)\]\s*$', "[assembly: AssemblyFileVersion(`"$ver4`")]" `
-              -replace '^\s*\[assembly:\s*AssemblyInformationalVersion\(".*?"\)\]\s*$', "[assembly: AssemblyInformationalVersion(`"$ver`")]" `
-              | Set-Content $asm -Encoding UTF8
+            -replace '^\s*\[assembly:\s*AssemblyVersion\(".*?"\)\]\s*$', "[assembly: AssemblyVersion(`"$ver4`")]" `
+            -replace '^\s*\[assembly:\s*AssemblyFileVersion\(".*?"\)\]\s*$', "[assembly: AssemblyFileVersion(`"$ver4`")]" `
+            -replace '^\s*\[assembly:\s*AssemblyInformationalVersion\(".*?"\)\]\s*$', "[assembly: AssemblyInformationalVersion(`"$ver`")]" `
+            | Set-Content $asm -Encoding UTF8
 
       - name: Restore & Publish (Release, self-contained, win-x64)
         shell: pwsh
@@ -88,7 +91,7 @@ jobs:
           Write-Host "Contenido vpk_out:";
           Get-ChildItem "$env:VPK_OUT" -Recurse
 
-      # ⚠️ No usar configure-aws-credentials (STS) con R2. Exportar vars simples sin token.
+      # No uses configure-aws-credentials (STS) con R2. Exporta claves estáticas sin token.
       - name: Configure AWS env for R2 (no STS)
         shell: pwsh
         run: |
@@ -125,14 +128,19 @@ jobs:
               --endpoint-url "$env:R2_ENDPOINT_URL"
           }
 
+      - name: List VPK output (debug)
+        shell: pwsh
+        run: |
+          Write-Host "VPK_OUT=$env:VPK_OUT"
+          if (Test-Path "$env:VPK_OUT") { Get-ChildItem "$env:VPK_OUT" -Recurse | Format-List FullName } else { Write-Error "No existe VPK_OUT" }
+
       - name: Create GitHub Release (optional)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           files: |
-            ${{ env.VPK_OUT }}\*.exe
-            ${{ env.VPK_OUT }}\*.nupkg
-            ${{ env.VPK_OUT }}\releases*.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            ${{ env.VPK_OUT }}/*.exe
+            ${{ env.VPK_OUT }}/*.nupkg
+            ${{ env.VPK_OUT }}/releases*.json
+          token: ${{ secrets.GITHUB_TOKEN }}
