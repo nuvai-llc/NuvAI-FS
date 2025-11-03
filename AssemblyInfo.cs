@@ -2,18 +2,19 @@ using System.Reflection;
 using System.Resources;
 using System.Windows;
 
-// ---- Metadatos opcionales (útiles para “Detalles del archivo”) ----
+// Metadatos (aparecen en Detalles del archivo)
 [assembly: AssemblyTitle("NuvAI FS")]
 [assembly: AssemblyCompany("NuvAI LLC")]
 [assembly: AssemblyProduct("NuvAI FS")]
 
-// ---- Versión unificada (edita solo aquí) ----
+// VersiÃ³n unificada (ajustada por CI)
 [assembly: AssemblyVersion("1.0.2.0")]            // CLR/bindings
-[assembly: AssemblyFileVersion("1.0.2.0")]        // Versión de archivo
-[assembly: AssemblyInformationalVersion("1.0.2")] // SemVer visible (UI, logs)
+[assembly: AssemblyFileVersion("1.0.2.0")]        // VersiÃ³n de archivo
+[assembly: AssemblyInformationalVersion("1.0.9")] // SemVer visible (UI, logs)
+
 [assembly: NeutralResourcesLanguage("es-ES")]
 
-// ---- Lo que ya tenías ----
+// WPF ThemeInfo
 [assembly: ThemeInfo(
     ResourceDictionaryLocation.None,
     ResourceDictionaryLocation.SourceAssembly
