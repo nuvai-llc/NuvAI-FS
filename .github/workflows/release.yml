@@ -77,8 +77,9 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: us-east-1     
           mask-aws-account-id: false
+        
 
       - name: Ensure AWS CLI is available (install if missing)
         shell: pwsh
