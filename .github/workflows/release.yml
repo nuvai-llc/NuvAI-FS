@@ -1,0 +1,114 @@
+name: Release (Velopack -> R2)
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-pack-upload:
+    runs-on: windows-latest
+
+    env:
+      # Ruta base pública en R2 (carpeta donde colgaremos releases.win.json y .nupkg)
+      R2_PREFIX: fs
+      # Solución y rutas
+      SLN_PATH: .\NuvAI FS.sln
+      PUBLISH_DIR: .\publish
+      ICON_PATH: .\app.ico
+      MAIN_EXE: NuvAI FS.exe
+      PACK_ID: NuvAI_FS
+      PACK_TITLE: NuvAI FS
+      PACK_AUTHORS: NuvAI LLC
+      # (Opcional) carpeta de salida de vpk
+      VPK_OUT: .\vpk_out
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set VERSION from tag (strip leading 'v')
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag.StartsWith("v")) { $tag = $tag.Substring(1) }
+          echo "VERSION=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Setup .NET 8.x
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install Velopack CLI
+        shell: pwsh
+        run: |
+          dotnet tool install -g vpk
+          echo "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          vpk --version
+
+      - name: Restore & Publish (Release, self-contained, win-x64)
+        shell: pwsh
+        run: |
+          dotnet restore "$env:SLN_PATH"
+          dotnet publish "$env:SLN_PATH" -c Release -r win-x64 -p:SelfContained=true -o "$env:PUBLISH_DIR"
+
+      - name: Velopack pack (usa versión del tag)
+        shell: pwsh
+        run: |
+          if (Test-Path "$env:VPK_OUT") { Remove-Item "$env:VPK_OUT" -Recurse -Force }
+          New-Item "$env:VPK_OUT" -ItemType Directory | Out-Null
+
+          vpk pack `
+            --packId "$env:PACK_ID" `
+            --packVersion "${{ env.VERSION }}" `
+            --packDir "$env:PUBLISH_DIR" `
+            --mainExe "$env:MAIN_EXE" `
+            --packAuthors "$env:PACK_AUTHORS" `
+            --packTitle "$env:PACK_TITLE" `
+            --framework net8.0-arm64-runtime `
+            --noPortable `
+            --icon "$env:ICON_PATH" `
+            --shortcuts Desktop,StartMenuRoot,StartMenu `
+            --outDir "$env:VPK_OUT"
+
+          Write-Host "Contenido vpk_out:"
+          Get-ChildItem "$env:VPK_OUT" -Recurse
+
+      - name: Install AWS CLI
+        uses: aws-actions/setup-awstools@v1
+        with:
+          awscli: true
+
+      - name: Configure AWS creds (R2 S3-compatible)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          aws-region: auto
+          mask-aws-account-id: false
+
+      - name: Upload to R2 (fs/)
+        shell: pwsh
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ENDPOINT_URL: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        run: |
+          # Subimos TODO lo que genera Velopack (incluye releases.win.json, .nupkg/.vpack, installer opcional)
+          aws s3 cp "$env:VPK_OUT\" "s3://$env:R2_BUCKET/$env:R2_PREFIX/" `
+            --recursive --endpoint-url "$env:R2_ENDPOINT_URL" `
+            --no-progress
+
+      # (Opcional) Crea un GitHub Release y adjunta el installer si lo generas
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            ${{ env.VPK_OUT }}\*.exe
+            ${{ env.VPK_OUT }}\*.nupkg
+            ${{ env.VPK_OUT }}\releases*.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+<<<<<<< HEAD
 	<StartupObject>NuvAI FS.App</StartupObject>
   </PropertyGroup>
 
@@ -19,11 +20,31 @@
   </ItemGroup>
 
   <ItemGroup>
+=======
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <SignAssembly>False</SignAssembly>
+
+	<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <SatelliteResourceLanguages>es;es-ES</SatelliteResourceLanguages>
+
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="app.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
+>>>>>>> 55663132d599ae9c9e005ee37c7e19335329f3f1
     <PackageReference Include="Velopack" Version="0.0.1298" />
   </ItemGroup>
 
   <ItemGroup>
+<<<<<<< HEAD
     <Page Include="AssemblyInfo.cs" />
+=======
+    <None Include=".github\workflows\release.yml" />
+>>>>>>> 55663132d599ae9c9e005ee37c7e19335329f3f1
   </ItemGroup>
 
 </Project>
