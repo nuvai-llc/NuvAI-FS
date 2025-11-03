@@ -1,0 +1,86 @@
+﻿<Window x:Class="NuvAI_FS.Presentation.Views.LicenseWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Activación de licencia"
+        SizeToContent="WidthAndHeight"
+        MinWidth="420" MaxWidth="640"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        UseLayoutRounding="True">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- título -->
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="Auto"/>
+            <!-- id -->
+            <RowDefinition Height="10"/>
+            <RowDefinition Height="Auto"/>
+            <!-- licencia -->
+            <RowDefinition Height="8"/>
+            <RowDefinition Height="Auto"/>
+            <!-- loading + info -->
+            <RowDefinition Height="16"/>
+            <RowDefinition Height="Auto"/>
+            <!-- acciones -->
+        </Grid.RowDefinitions>
+
+        <!-- Título -->
+        <TextBlock Grid.Row="0"
+                   Text="Introduce tu ID de cliente y tu licencia:"
+                   FontWeight="SemiBold"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,4"/>
+
+        <!-- ID de cliente -->
+        <StackPanel Grid.Row="2">
+            <TextBlock Text="ID de cliente" Margin="0,0,0,4"/>
+            <TextBox x:Name="TxtClientId"
+                     Padding="6"
+                     MinWidth="340"
+                     MaxLength="5"
+                     HorizontalAlignment="Stretch"
+                     ToolTip="Solo números, máximo 5 dígitos"/>
+        </StackPanel>
+
+        <!-- Licencia -->
+        <StackPanel Grid.Row="4">
+            <TextBlock Text="Licencia" Margin="0,0,0,4"/>
+            <TextBox x:Name="TxtLicense"
+                     Padding="6"
+                     MinWidth="340"
+                     MaxLength="19"
+                     CharacterCasing="Upper"
+                     HorizontalAlignment="Stretch"
+                     ToolTip="Formato: XXXX-XXXX-XXXX-XXXX"/>
+        </StackPanel>
+
+        <!-- Loading + Info (ambos ocultos por defecto) -->
+        <StackPanel Grid.Row="6" Orientation="Vertical">
+            <!-- Loading indeterminado (oculto inicialmente) -->
+            <ProgressBar x:Name="PbLoading"
+                         Height="4"
+                         IsIndeterminate="True"
+                         Visibility="Collapsed"
+                         Margin="0,0,0,6"/>
+            <!-- Texto de información/estado (oculto inicialmente) -->
+            <TextBlock x:Name="LblInfo"
+                       Visibility="Collapsed"
+                       Text=""
+                       Foreground="Gray"
+                       TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- Acciones -->
+        <DockPanel Grid.Row="8" LastChildFill="True">
+            <Button x:Name="AcceptBtn"
+                    Content="Activar"
+                    Width="100"
+                    MinWidth="100"
+                    Padding="4"
+                    HorizontalAlignment="Right"
+                    IsDefault="True"
+                    IsEnabled="False"/>
+        </DockPanel>
+    </Grid>
+</Window>

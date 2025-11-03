@@ -1,0 +1,21 @@
+﻿<Window x:Class="NuvAI_FS.src.Presentation.Views.Shared.LoadingDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Procesando..."
+        WindowStyle="ToolWindow"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Topmost="True">
+    <Border Padding="16" Margin="8">
+        <StackPanel MinWidth="320">
+            <TextBlock x:Name="LblText"
+                       Text="Cargando..."
+                       Margin="0,0,0,10"
+                       TextWrapping="Wrap"
+                       FontWeight="SemiBold"/>
+            <ProgressBar IsIndeterminate="True" Height="10"/>
+        </StackPanel>
+    </Border>
+</Window>

@@ -1,0 +1,22 @@
+﻿<!-- src/Presentation/Views/WizardPages/SetupSummaryPage.xaml -->
+<Page x:Class="NuvAI_FS.src.Presentation.Views.WizardPages.SetupSummaryPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Resumen">
+    <StackPanel>
+        <TextBlock Text="¡Todo listo!" FontWeight="Bold" FontSize="16"/>
+        <TextBlock Margin="0,8,0,0" TextWrapping="Wrap">
+            Revisa tu configuración. Puedes modificar estas opciones más adelante desde el menú de ajustes.
+        </TextBlock>
+
+        <StackPanel Margin="0,12,0,0">
+            <TextBlock Text="Instalación de Factusol:" FontWeight="SemiBold"/>
+            <TextBlock x:Name="LblInstall" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel Margin="0,8,0,0">
+            <TextBlock Text="Carpeta de copias (backups):" FontWeight="SemiBold"/>
+            <TextBlock x:Name="LblBackups" TextWrapping="Wrap" />
+        </StackPanel>
+    </StackPanel>
+</Page>
