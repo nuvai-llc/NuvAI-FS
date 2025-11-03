@@ -20,7 +20,7 @@ namespace NuvAI_FS
                 // IMPORTANTE: usa la URL completa del repo
                 // Para repo privado: pon el token en el 2º parámetro en lugar de ""
                 var source = new GithubSource(
-                    repoUrl: "https://github.com/OWNER/REPO",
+                    repoUrl: "https://github.com/nuvai-llc/NuvAI-FS",
                     accessToken: "",
                     prerelease: false
                 );
