@@ -10,9 +10,7 @@ jobs:
     runs-on: windows-latest
 
     env:
-      # Ruta base pública en R2 (carpeta donde colgaremos releases.win.json y .nupkg)
       R2_PREFIX: fs
-      # Solución y rutas
       SLN_PATH: .\NuvAI FS.sln
       PUBLISH_DIR: .\publish
       ICON_PATH: .\app.ico
@@ -20,7 +18,6 @@ jobs:
       PACK_ID: NuvAI_FS
       PACK_TITLE: NuvAI FS
       PACK_AUTHORS: NuvAI LLC
-      # (Opcional) carpeta de salida de vpk
       VPK_OUT: .\vpk_out
 
     steps:
@@ -52,7 +49,7 @@ jobs:
           dotnet restore "$env:SLN_PATH"
           dotnet publish "$env:SLN_PATH" -c Release -r win-x64 -p:SelfContained=true -o "$env:PUBLISH_DIR"
 
-      - name: Velopack pack (usa versión del tag)
+      - name: Velopack pack (usa versiÃ³n del tag)
         shell: pwsh
         run: |
           if (Test-Path "$env:VPK_OUT") { Remove-Item "$env:VPK_OUT" -Recurse -Force }
@@ -74,11 +71,7 @@ jobs:
           Write-Host "Contenido vpk_out:"
           Get-ChildItem "$env:VPK_OUT" -Recurse
 
-      - name: Install AWS CLI
-        uses: aws-actions/setup-awstools@v1
-        with:
-          awscli: true
-
+      # âœ… Solo credenciales (no instala CLI)
       - name: Configure AWS creds (R2 S3-compatible)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -87,25 +80,38 @@ jobs:
           aws-region: auto
           mask-aws-account-id: false
 
-      - name: Upload to R2 (fs/)
+      # âœ… Fallback: si 'aws' no existe, instalarlo con Chocolatey
+      - name: Ensure AWS CLI is available (install if missing)
+        shell: pwsh
+        run: |
+          if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
+            choco install awscli -y
+          }
+          aws --version
+
+      - name: Upload ALL artifacts to R2 (fs/)
         shell: pwsh
         env:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ENDPOINT_URL: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         run: |
-          # Subimos TODO lo que genera Velopack (incluye releases.win.json, .nupkg/.vpack, installer opcional)
           aws s3 cp "$env:VPK_OUT\" "s3://$env:R2_BUCKET/$env:R2_PREFIX/" `
-            --recursive --endpoint-url "$env:R2_ENDPOINT_URL" `
-            --no-progress
+            --recursive --endpoint-url "$env:R2_ENDPOINT_URL" --no-progress
 
-      # (Opcional) Crea un GitHub Release y adjunta el installer si lo generas
-      - name: Create GitHub Release
+          # (Opcional) forzar no-cache al manifiesto
+          $manifest = Join-Path $env:VPK_OUT "releases.win.json"
+          if (Test-Path $manifest) {
+            aws s3 cp "$manifest" "s3://$env:R2_BUCKET/$env:R2_PREFIX/release.tmp.json" `
+              --endpoint-url "$env:R2_ENDPOINT_URL" --cache-control "no-cache" --content-type "application/json" --metadata-directive REPLACE
+            aws s3 mv "s3://$env:R2_BUCKET/$env:R2_PREFIX/release.tmp.json" "s3://$env:R2_BUCKET/$env:R2_PREFIX/releases.win.json" `
+              --endpoint-url "$env:R2_ENDPOINT_URL"
+          }
+
+      - name: Create GitHub Release (optional)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
           files: |
             ${{ env.VPK_OUT }}\*.exe
             ${{ env.VPK_OUT }}\*.nupkg
