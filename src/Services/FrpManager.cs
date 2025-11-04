@@ -285,7 +285,7 @@ namespace NuvAI_FS.src.Services
         private async Task WriteIniAsync()
         {
             // subdominio público = SOLO clientId
-            var sub = MakeSafeSubdomain(_clientId);           
+            var sub = MakeSafeSubdomain(_clientId);
 
             // nombre de proxy ÚNICO en frps (añadimos instanceId SOLO aquí)
             var proxyName = $"api-http-{sub}-{_instanceId}";  // p.ej. "api-http-29748-3ph7v"
