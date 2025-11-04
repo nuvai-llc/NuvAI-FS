@@ -15,21 +15,22 @@ using System.Windows.Media;
 
 namespace NuvAI_FS.src.Presentation.Views.WizardPages
 {
+    [SupportedOSPlatform("windows")]
     public partial class SetupPathsPage : Page
     {
         private readonly SetupState _state;
         private readonly Action<bool> _validityChanged;
         private readonly Action _validatedCallback;
+        private readonly Action<bool> _companySelectedChanged;
 
         // Rutas por defecto
         private const string DEFAULT_INSTALL = @"C:\Software DELSOL\FACTUSOL";
         private const string DEFAULT_DATOS = @"C:\Software DELSOL\FACTUSOL\Datos";
 
-        // Glyphs MDL2
+        // Glyphs
         private const string IconFolder = "\uE8B7";
         private const string IconTick = "\uE73E";
 
-        // Estado visual de campos
         private enum FieldState { Neutral, Valid, Invalid }
         private sealed class FieldControls
         {
@@ -38,7 +39,6 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
             public Button BrowseBtn { get; init; } = null!;
         }
 
-        // Colores reutilizables
         private static readonly Brush NeutralBorder = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DDDDDD"));
         private static readonly Brush OkBrush = Brushes.ForestGreen;
         private static readonly Brush ErrBrush = Brushes.IndianRed;
@@ -46,19 +46,24 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
         private FieldControls InstallControls => new() { Border = BorderInstall, Icon = IconInstall, BrowseBtn = BtnBrowseInstall };
         private FieldControls DataControls => new() { Border = BorderData, Icon = IconData, BrowseBtn = BtnBrowseData };
 
-        private Window? OwnerWindow => Window.GetWindow(this);
+        // Estado de ocupación para evitar reentradas
+        private bool _isBusy;
 
-        public SetupPathsPage(SetupState state, Action<bool> validityChanged, Action validatedCallback)
+        public SetupPathsPage(
+            SetupState state,
+            Action<bool> validityChanged,
+            Action validatedCallback,
+            Action<bool> companySelectedChanged)
         {
             InitializeComponent();
             _state = state;
             _validityChanged = validityChanged;
             _validatedCallback = validatedCallback;
+            _companySelectedChanged = companySelectedChanged;
 
-            // Prefill si no hay valores en estado
+            // Prefill desde estado (o defaults si viene vacío)
             if (string.IsNullOrWhiteSpace(_state.FactusolInstallPath))
                 _state.FactusolInstallPath = DEFAULT_INSTALL;
-
             if (string.IsNullOrWhiteSpace(_state.DataPath))
                 _state.DataPath = DEFAULT_DATOS;
 
@@ -68,81 +73,146 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
             SetFieldState(InstallControls, FieldState.Neutral);
             SetFieldState(DataControls, FieldState.Neutral);
             _validityChanged(false);
+
+            // Restauración si ya estaba validado
+            if (_state.PathsValidated &&
+                Directory.Exists(_state.FactusolInstallPath) &&
+                Directory.Exists(_state.DataPath))
+            {
+                SetFieldState(InstallControls, FieldState.Valid);
+                SetFieldState(DataControls, FieldState.Valid);
+                LblOk.Visibility = Visibility.Visible;
+                BtnValidate.IsEnabled = false;
+
+                RestoreCompaniesFast(_state.DataPath);
+            }
         }
 
-        public SetupPathsPage() : this(new SetupState(), _ => { }, () => { }) { }
+        public SetupPathsPage()
+            : this(new SetupState(), _ => { }, () => { }, _ => { }) { }
 
-        // ===== UI events =====
-        [SupportedOSPlatform("windows")]
+        // ===== Helpers owner-safe =====
+        private Window? TryGetOwner()
+        {
+            try
+            {
+                var w = Window.GetWindow(this);
+                if (w != null && w.IsVisible) return w;
+                var mw = Application.Current?.MainWindow;
+                if (mw != null && mw.IsVisible) return mw;
+            }
+            catch { }
+            return null;
+        }
+
+        private async Task RunWithLoadingSafeAsync(string text, Func<Task> work)
+        {
+            var owner = TryGetOwner();
+            if (owner != null)
+            {
+                await Dialogs.RunWithLoadingAsync(owner, text, work);
+            }
+            else
+            {
+                await work();
+            }
+        }
+
+        private void InfoSafe(string text, string title)
+        {
+            try { var o = TryGetOwner(); if (o != null) MessageBox.Show(o, text, title, MessageBoxButton.OK, MessageBoxImage.Information); } catch { }
+        }
+        private void WarnSafe(string text, string title)
+        {
+            try { var o = TryGetOwner(); if (o != null) MessageBox.Show(o, text, title, MessageBoxButton.OK, MessageBoxImage.Warning); } catch { }
+        }
+
+        // ===== UI Events =====
         private void InstallInput_Click(object sender, MouseButtonEventArgs e)
         {
             if (!BorderInstall.IsEnabled) return;
             PickInstall();
         }
 
-        [SupportedOSPlatform("windows")]
         private void DataInput_Click(object sender, MouseButtonEventArgs e)
         {
             if (!BorderData.IsEnabled) return;
             PickData();
         }
 
-        [SupportedOSPlatform("windows")]
         private void BrowseInstall_Click(object sender, RoutedEventArgs e) => InstallInput_Click(sender, null!);
-
-        [SupportedOSPlatform("windows")]
         private void BrowseData_Click(object sender, RoutedEventArgs e) => DataInput_Click(sender, null!);
 
-        [SupportedOSPlatform("windows")]
         private async void BtnValidate_Click(object sender, RoutedEventArgs e)
         {
-            var installPath = (LblInstall.Text ?? string.Empty).Trim();
-            var dataPath = (LblData.Text ?? string.Empty).Trim();
+            if (_isBusy) return;
+            _isBusy = true;
+            SetInteractive(false);
 
-            bool okInstall = false, okData = false;
-
-            await Dialogs.RunWithLoadingAsync(OwnerWindow, "Validando rutas...", async () =>
+            try
             {
-                await Task.Run(() =>
+                var installPath = (LblInstall.Text ?? string.Empty).Trim();
+                var dataPath = (LblData.Text ?? string.Empty).Trim();
+
+                bool okInstall = false, okData = false;
+
+                await RunWithLoadingSafeAsync("Validando rutas...", async () =>
                 {
-                    okInstall = Directory.Exists(installPath);
-                    okData = Directory.Exists(dataPath);
+                    await Task.Run(() =>
+                    {
+                        okInstall = Directory.Exists(installPath);
+                        okData = Directory.Exists(dataPath);
+                    });
                 });
-            });
 
-            ApplyInstallResult(okInstall, installPath);
-            ApplyDataResult(okData, dataPath);
+                ApplyInstallResult(okInstall, installPath);
+                ApplyDataResult(okData, dataPath);
 
-            bool allOk = okInstall && okData;
-            _validityChanged(allOk);
+                bool allOk = okInstall && okData;
+                _validityChanged(allOk);
 
-            if (allOk)
-            {
+                if (!allOk)
+                {
+                    string msg = "No se han encontrado:";
+                    if (!okInstall) msg += "\n• Ruta de instalación de Factusol";
+                    if (!okData) msg += "\n• Carpeta de Datos";
+                    WarnSafe(string.IsNullOrWhiteSpace(msg) ? "Hay rutas no válidas." : msg, "Validación incompleta");
+
+                    _state.PathsValidated = false;
+                    return;
+                }
+
                 LblOk.Visibility = Visibility.Visible;
                 BtnValidate.IsEnabled = false;
+
+                _state.PathsValidated = true;
                 _validatedCallback();
 
-                // Cargar empresas desde Datos\FS
+                // Cargar empresas (solo con nombre válido)
                 await LoadCompaniesAsync(dataPath);
 
-                MessageBox.Show(OwnerWindow,
-                    "Las rutas han sido validadas correctamente.",
-                    "Validación correcta",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                InfoSafe("Las rutas han sido validadas correctamente.", "Validación correcta");
             }
-            else
+            catch (Exception ex)
             {
-                string msg = "No se han encontrado:";
-                if (!okInstall) msg += "\n• Ruta de instalación de Factusol";
-                if (!okData) msg += "\n• Carpeta de Datos";
-
-                MessageBox.Show(OwnerWindow,
-                    string.IsNullOrWhiteSpace(msg) ? "Hay rutas no válidas." : msg,
-                    "Validación incompleta",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                WarnSafe($"Error durante la validación: {ex.Message}", "Error");
+                _state.PathsValidated = false;
+                _validityChanged(false);
             }
+            finally
+            {
+                SetInteractive(true);
+                _isBusy = false;
+            }
+        }
+
+        private void SetInteractive(bool enabled)
+        {
+            BorderInstall.IsEnabled = enabled;
+            BorderData.IsEnabled = enabled;
+            BtnBrowseInstall.IsEnabled = enabled;
+            BtnBrowseData.IsEnabled = enabled;
+            BtnValidate.IsEnabled = enabled && !_state.PathsValidated;
         }
 
         // ===== Field state helpers =====
@@ -196,6 +266,7 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
                 SetFieldState(InstallControls, FieldState.Invalid);
                 LblOk.Visibility = Visibility.Collapsed;
                 CompanyBlock.Visibility = Visibility.Collapsed;
+                _companySelectedChanged(false);
             }
         }
 
@@ -213,11 +284,11 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
                 SetFieldState(DataControls, FieldState.Invalid);
                 LblOk.Visibility = Visibility.Collapsed;
                 CompanyBlock.Visibility = Visibility.Collapsed;
+                _companySelectedChanged(false);
             }
         }
 
         // ===== Picking =====
-        [SupportedOSPlatform("windows")]
         private void PickInstall()
         {
             var selected = PickFolder(LblInstall.Text);
@@ -227,10 +298,11 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
             _state.FactusolInstallPath = selected;
             SetFieldState(InstallControls, FieldState.Neutral);
             BtnValidate.IsEnabled = true;
+            _state.PathsValidated = false;
+            _companySelectedChanged(false);
             _validityChanged(false);
         }
 
-        [SupportedOSPlatform("windows")]
         private void PickData()
         {
             var selected = PickFolder(LblData.Text);
@@ -240,68 +312,141 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
             _state.DataPath = selected;
             SetFieldState(DataControls, FieldState.Neutral);
             BtnValidate.IsEnabled = true;
+            _state.PathsValidated = false;
+            _companySelectedChanged(false);
             _validityChanged(false);
         }
 
-        // ===== Empresas (Datos\FS\*.accdb) =====
+        // ===== Empresas =====
         private sealed record CompanyItem(string Name, string Path);
 
-        [SupportedOSPlatform("windows")]
+        private void RestoreCompaniesFast(string dataRoot)
+        {
+            // Si tenías cache previa, ahora solo la usamos si ya está ENRIQUECIDA (con nombres válidos);
+            // si no lo está, preferimos recargar con ACE para filtrar correctamente.
+            if (_state.CompanyListEnriched && _state.CompanyList is { Count: > 0 } cached)
+            {
+                CompanyBlock.Visibility = Visibility.Visible;
+                var items = new List<CompanyItem>(cached.Count);
+                for (int i = 0; i < cached.Count; i++)
+                    items.Add(new CompanyItem(cached[i].Name, cached[i].Path));
+
+                CmbCompany.ItemsSource = items;
+                CmbCompany.IsEnabled = items.Count > 0;
+                LblCompanyHint.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+                // Reselección
+                if (!string.IsNullOrWhiteSpace(_state.DatabasePath))
+                    SelectCompanyByPath(_state.DatabasePath);
+                else if (!string.IsNullOrWhiteSpace(_state.CompanyName))
+                    SelectCompanyByName(_state.CompanyName);
+
+                return;
+            }
+
+            // Si no hay cache enriquecida, forzamos carga completa para filtrar bien.
+            _ = LoadCompaniesAsync(dataRoot);
+        }
+
         private async Task LoadCompaniesAsync(string dataRoot)
+            => await LoadCompaniesInternalAsync(dataRoot, showAceInfoIfMissing: true);
+
+        private async Task LoadCompaniesInternalAsync(string dataRoot, bool showAceInfoIfMissing)
         {
             var fsDir = System.IO.Path.Combine(dataRoot, "FS");
-            var items = new List<CompanyItem>();
+            var validItems = new List<CompanyItem>();
 
-            // 1) Enumerar archivos .accdb (siempre)
+            // Requiere ACE para poder filtrar por CTT1TPV
+            bool hasAce = AceRuntime.IsAceAvailable();
+            if (!hasAce)
+            {
+                try
+                {
+                    var owner = TryGetOwner();
+                    var ok = await AceRuntime.EnsureAceInstalledAsync(owner!);
+                    hasAce = ok && AceRuntime.IsAceAvailable();
+                }
+                catch { hasAce = AceRuntime.IsAceAvailable(); }
+            }
+
             if (Directory.Exists(fsDir))
             {
-                foreach (var file in Directory.EnumerateFiles(fsDir, "*.accdb", SearchOption.TopDirectoryOnly))
-                    items.Add(new CompanyItem(Path.GetFileNameWithoutExtension(file), file));
-            }
-
-            // 2) Asegurar ACE (si falta, intentamos instalar x64/x86)
-            bool hadAce = AceRuntime.IsAceAvailable();
-            if (!hadAce)
-            {
-                var ok = await AceRuntime.EnsureAceInstalledAsync(OwnerWindow);
-                hadAce = ok && AceRuntime.IsAceAvailable();
-            }
-
-            // 3) Enriquecer nombres (T_TPV.CTT1TPV)
-            if (hadAce)
-            {
-                for (int i = 0; i < items.Count; i++)
+                if (hasAce)
                 {
-                    var friendly = TryGetCompanyNameFromAccdb(items[i].Path);
-                    if (!string.IsNullOrWhiteSpace(friendly))
-                        items[i] = items[i] with { Name = friendly! };
+                    // Solo agregamos accdb con nombre válido
+                    foreach (var file in Directory.EnumerateFiles(fsDir, "*.accdb", SearchOption.TopDirectoryOnly))
+                    {
+                        var friendly = TryGetCompanyNameFromAccdb(file);
+                        if (!string.IsNullOrWhiteSpace(friendly))
+                            validItems.Add(new CompanyItem(friendly!, file));
+                    }
+                }
+                else
+                {
+                    // Sin ACE no podemos conocer nombres → no mostramos nada
+                    validItems.Clear();
                 }
             }
 
-            // 4) Poblar UI
+            // Poblar UI con solo válidos
             CompanyBlock.Visibility = Visibility.Visible;
-            CmbCompany.ItemsSource = items;
-            CmbCompany.IsEnabled = items.Count > 0;
-            LblCompanyHint.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            CmbCompany.ItemsSource = validItems;
+            CmbCompany.IsEnabled = validItems.Count > 0;
+            LblCompanyHint.Visibility = validItems.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-            if (items.Count == 1) CmbCompany.SelectedIndex = 0;
+            // Cache solo con válidos
+            var cache = new List<(string Name, string Path)>(validItems.Count);
+            for (int i = 0; i < validItems.Count; i++)
+                cache.Add((validItems[i].Name, validItems[i].Path));
+            _state.CompanyList = cache;
+            _state.CompanyListEnriched = true;
 
-            // 5) Aviso si no pudimos enriquecer
-            if (!hadAce && items.Count > 0)
+            // Autoselección si hay una sola
+            if (string.IsNullOrWhiteSpace(_state.DatabasePath) && validItems.Count == 1)
+                CmbCompany.SelectedIndex = 0;
+
+            if (!hasAce && showAceInfoIfMissing)
             {
-                MessageBox.Show(OwnerWindow,
+                InfoSafe(
                     "No se pudo leer el nombre interno de las empresas porque falta el motor de Access.\n" +
-                    "Se mostrarán los nombres de archivo. Puedes instalar el motor más tarde desde el Setup.",
-                    "Información",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                    "Hasta instalarlo, la lista de empresas permanecerá vacía.",
+                    "Información");
+            }
+        }
+
+        private void SelectCompanyByPath(string accdbPath)
+        {
+            if (CmbCompany.ItemsSource is IEnumerable<CompanyItem> src)
+            {
+                int idx = 0, i = 0;
+                foreach (var it in src)
+                {
+                    if (string.Equals(it.Path, accdbPath, StringComparison.OrdinalIgnoreCase))
+                    { idx = i; break; }
+                    i++;
+                }
+                CmbCompany.SelectedIndex = idx;
+            }
+        }
+
+        private void SelectCompanyByName(string companyName)
+        {
+            if (CmbCompany.ItemsSource is IEnumerable<CompanyItem> src)
+            {
+                int idx = 0, i = 0;
+                foreach (var it in src)
+                {
+                    if (string.Equals(it.Name?.Trim(), companyName?.Trim(), StringComparison.OrdinalIgnoreCase))
+                    { idx = i; break; }
+                    i++;
+                }
+                CmbCompany.SelectedIndex = idx;
             }
         }
 
         /// <summary>
         /// Lee el nombre de la empresa desde T_TPV.CTT1TPV (primera no vacía).
         /// </summary>
-        [SupportedOSPlatform("windows")]
         private string? TryGetCompanyNameFromAccdb(string accdbPath)
         {
             try
@@ -333,10 +478,7 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
                             if (!string.IsNullOrEmpty(s)) return s;
                         }
                     }
-                    catch
-                    {
-                        // probar siguiente provider
-                    }
+                    catch { /* probar siguiente provider */ }
                 }
             }
             catch { /* noop */ }
@@ -344,96 +486,24 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
             return null;
         }
 
-        // Dump de T_TPV (uno por fila con MessageBox) al seleccionar empresa
-        [SupportedOSPlatform("windows")]
-        private async Task ShowCompanyDumpAsync(string accdbPath)
+        // Cambio de selección de empresa → persistir en estado + notificar
+        private void CmbCompany_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            await Task.Run(() =>
+            if (CmbCompany.SelectedItem is CompanyItem ci)
             {
-                var providers = new[]
-                {
-                    "Provider=Microsoft.ACE.OLEDB.16.0;Data Source={0};Persist Security Info=False;",
-                    "Provider=Microsoft.ACE.OLEDB.12.0;Data Source={0};Persist Security Info=False;"
-                };
-
-                foreach (var fmt in providers)
-                {
-                    var cs = string.Format(fmt, accdbPath);
-                    try
-                    {
-                        using var con = new OleDbConnection(cs);
-                        con.Open();
-
-                        using var cmdAll = new OleDbCommand("SELECT * FROM [T_TPV];", con);
-                        using var reader = cmdAll.ExecuteReader();
-
-                        int rowIndex = 0;
-                        while (reader != null && reader.Read())
-                        {
-                            var parts = new List<string>(reader.FieldCount);
-                            for (int i = 0; i < reader.FieldCount; i++)
-                            {
-                                string colName = reader.GetName(i);
-                                string? val = reader.IsDBNull(i) ? "<NULL>" : reader.GetValue(i)?.ToString();
-                                parts.Add($"{colName}: {val}");
-                            }
-
-                            string text = string.Join("\n", parts);
-                            string title = $"T_TPV — {System.IO.Path.GetFileName(accdbPath)} (fila {++rowIndex})";
-
-                            Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                MessageBox.Show(OwnerWindow,
-                                                text,
-                                                title,
-                                                MessageBoxButton.OK,
-                                                MessageBoxImage.Information);
-                            });
-                        }
-                        return; // provider correcto → no seguimos probando
-                    }
-                    catch
-                    {
-                        // probar siguiente provider
-                    }
-                }
-
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    MessageBox.Show(OwnerWindow,
-                                    "No se pudo abrir el archivo Access con ACE 16.0/12.0.",
-                                    "Error de lectura",
-                                    MessageBoxButton.OK,
-                                    MessageBoxImage.Warning);
-                });
-            });
-        }
-
-        // Al elegir empresa en el ComboBox → mostrar dump + guardar en estado
-        [SupportedOSPlatform("windows")]
-        private async void CmbCompany_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (CmbCompany.SelectedItem is CompanyItem ci && !string.IsNullOrWhiteSpace(ci.Path))
-            {
-                await ShowCompanyDumpAsync(ci.Path);
-                TrySetStateProperty("CompanyDbPath", ci.Path);
-                TrySetStateProperty("CompanyName", ci.Name);
+                _state.DatabasePath = ci.Path;
+                _state.CompanyName = ci.Name ?? string.Empty;
+                _companySelectedChanged(true);
             }
-        }
-
-        private void TrySetStateProperty(string prop, string value)
-        {
-            try
+            else
             {
-                var pi = _state.GetType().GetProperty(prop);
-                if (pi != null && pi.CanWrite && pi.PropertyType == typeof(string))
-                    pi.SetValue(_state, value);
+                _state.DatabasePath = string.Empty;
+                _state.CompanyName = string.Empty;
+                _companySelectedChanged(false);
             }
-            catch { /* noop */ }
         }
 
         // ==== Folder picker (Windows) ====
-        [SupportedOSPlatform("windows")]
         private string PickFolder(string? initial)
         {
             if (!OperatingSystem.IsWindows()) return string.Empty;
@@ -448,20 +518,8 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
             if (!string.IsNullOrWhiteSpace(initial) && Directory.Exists(initial))
                 dlg.SelectedPath = initial;
 
-            return dlg.ShowDialog(OwnerWindow) == true ? dlg.SelectedPath ?? string.Empty : string.Empty;
-        }
-
-        // Por si decides desactivar/activar rápido el conjunto de controles
-        private void SetUiEnabled(bool enabled)
-        {
-            BorderInstall.IsEnabled = enabled && IconInstall.Text != IconTick;
-            BtnBrowseInstall.IsEnabled = enabled && IconInstall.Text != IconTick;
-
-            BorderData.IsEnabled = enabled && IconData.Text != IconTick;
-            BtnBrowseData.IsEnabled = enabled && IconData.Text != IconTick;
-
-            BtnValidate.IsEnabled = enabled;
-            CmbCompany.IsEnabled = enabled && CmbCompany.Items.Count > 0;
+            var owner = TryGetOwner();
+            return dlg.ShowDialog(owner) == true ? dlg.SelectedPath ?? string.Empty : string.Empty;
         }
     }
 }

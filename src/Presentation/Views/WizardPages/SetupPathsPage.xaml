@@ -110,7 +110,7 @@
 
                      <!-- Columna 'dummy' para alinear con el botón de carpeta de los otros campos -->
                     <Button Grid.Column="1"
-                        Width="36" Height="32" Margin="8,0,0,0"
+                        Width="36" MinHeight="10" Padding="10" Margin="8,0,0,0"
                         Visibility="Hidden"
                         IsHitTestVisible="False"/>
                         </Grid>

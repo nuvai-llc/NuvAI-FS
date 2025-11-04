@@ -1,42 +1,64 @@
 ﻿<Window x:Class="NuvAI_FS.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="clr-namespace:NuvAI_FS"
-        Title="NuvAI FS" Height="300" Width="420">
+        Title="NuvAI FS" Height="320" Width="520"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize">
 
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+    <!-- Atajos de teclado ligeros (no bloqueantes) -->
+    <Window.InputBindings>
+        <!-- Configuración: Ctrl+, -->
+        <KeyBinding Key="OemComma" Modifiers="Control" Command="{x:Static ApplicationCommands.Properties}" />
+        <!-- Buscar actualización: Ctrl+U -->
+        <KeyBinding Key="U" Modifiers="Control" Command="{x:Static ApplicationCommands.Replace}" />
+        <!-- Ayuda: F1 -->
+        <KeyBinding Key="F1" Command="{x:Static ApplicationCommands.Help}" />
+    </Window.InputBindings>
 
-            <Button 
-                x:Name="UpdateBtn" Content="Actualizar"
-                Grid.Row="0" Grid.Column="1"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Margin="10" Padding="10,5"
-                MinWidth="80" Click="UpdateBtn_Click"
-                />
+    <Window.CommandBindings>
+        <!-- Configuración -->
+        <CommandBinding Command="{x:Static ApplicationCommands.Properties}"
+                        Executed="OpenSettings_Executed" CanExecute="Always_CanExecute"/>
+        <!-- Buscar actualización (reusa tu UpdateBtn_Click en el code-behind) -->
+        <CommandBinding Command="{x:Static ApplicationCommands.Replace}"
+                        Executed="InvokeUpdate_Executed" CanExecute="Always_CanExecute"/>
+        <!-- Ayuda -->
+        <CommandBinding Command="{x:Static ApplicationCommands.Help}"
+                        Executed="OpenHelp_Executed" CanExecute="Always_CanExecute"/>
+    </Window.CommandBindings>
 
-            <StackPanel HorizontalAlignment="Left"
-                         VerticalAlignment="Top" Grid.Row="1" Grid.ColumnSpan="2" Margin="50,36,0,0">
-                <TextBox x:Name="MainTxt" Height="30" Width="300"
-                          Margin="10" HorizontalAlignment="Center"
-                          VerticalAlignment="Center" />
+    <DockPanel LastChildFill="True">
 
-                <Button 
-                   x:Name="SubmitBtn" Content="Enviar"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Top"
-                   Margin="10" Padding="10,5"
-                   MinWidth="80" Click="SubmitBtn_Click"
-                   />
-            </StackPanel>
+        <!-- Menú superior -->
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_Ajustes">
+                <MenuItem Header="_Configuración" 
+                          Command="{x:Static ApplicationCommands.Properties}"/>
+                <Separator/>
+                <MenuItem Header="_Buscar actualización  (Ctrl+U)" 
+                          Command="{x:Static ApplicationCommands.Replace}"/>
+                <Separator/>
+                <MenuItem Header="_Ayuda  (F1)"
+                          Command="{x:Static ApplicationCommands.Help}"/>
+            </MenuItem>
+        </Menu>
 
+        <!-- Contenido principal vacío (placeholder) -->
+        <Grid Margin="12">
+            <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="6" Padding="12">
+                <TextBlock Text="Bienvenido a NuvAI FS"
+                           FontSize="16"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Opacity="0.85"/>
+            </Border>
         </Grid>
+
+        <!-- Barra de estado mínima -->
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusText" Text="Listo" />
+            </StatusBarItem>
+        </StatusBar>
+    </DockPanel>
 </Window>

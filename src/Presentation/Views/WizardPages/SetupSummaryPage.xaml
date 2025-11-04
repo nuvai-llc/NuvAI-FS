@@ -1,22 +1,87 @@
-﻿<!-- src/Presentation/Views/WizardPages/SetupSummaryPage.xaml -->
-<Page x:Class="NuvAI_FS.src.Presentation.Views.WizardPages.SetupSummaryPage"
+﻿<Page x:Class="NuvAI_FS.src.Presentation.Views.WizardPages.SetupSummaryPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Title="Resumen">
-    <StackPanel>
+    <StackPanel Margin="0,0,0,0">
         <TextBlock Text="¡Todo listo!" FontWeight="Bold" FontSize="16"/>
         <TextBlock Margin="0,8,0,0" TextWrapping="Wrap">
-            Revisa tu configuración. Puedes modificar estas opciones más adelante desde el menú de ajustes.
+      Revisa tu configuración. Podrás modificar estas opciones más adelante desde el menú de ajustes.
         </TextBlock>
 
-        <StackPanel Margin="0,12,0,0">
-            <TextBlock Text="Instalación de Factusol:" FontWeight="SemiBold"/>
-            <TextBlock x:Name="LblInstall" TextWrapping="Wrap" />
-        </StackPanel>
+        <!-- Instalación -->
+        <Grid Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-        <StackPanel Margin="0,8,0,0">
-            <TextBlock Text="Carpeta de copias (backups):" FontWeight="SemiBold"/>
-            <TextBlock x:Name="LblBackups" TextWrapping="Wrap" />
-        </StackPanel>
+            <!-- Tick verde -->
+            <TextBlock Grid.Column="0"
+                 Text="&#xE73E;"
+                 FontFamily="Segoe MDL2 Assets"
+                 Foreground="ForestGreen"
+                 Margin="0,2,8,0"/>
+
+            <StackPanel Grid.Column="1">
+                <TextBlock Text="Instalación de Factusol:" FontWeight="SemiBold"/>
+                <TextBlock x:Name="LblInstall" TextWrapping="Wrap" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Carpeta de Datos -->
+        <Grid Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                 Text="&#xE73E;"
+                 FontFamily="Segoe MDL2 Assets"
+                 Foreground="ForestGreen"
+                 Margin="0,2,8,0"/>
+
+            <StackPanel Grid.Column="1">
+                <TextBlock Text="Carpeta de Datos:" FontWeight="SemiBold"/>
+                <TextBlock x:Name="LblDatos" TextWrapping="Wrap" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Empresa (nombre + ruta .accdb) -->
+        <Grid Margin="0,8,0,0" x:Name="CompanyBlock">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="6"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Fila: Empresa -->
+            <TextBlock Grid.Row="0" Grid.Column="0"
+             Text="&#xE73E;"
+             FontFamily="Segoe MDL2 Assets"
+             Foreground="ForestGreen"
+             Margin="0,2,8,0"/>
+            <StackPanel Grid.Row="0" Grid.Column="1">
+                <TextBlock Text="Empresa seleccionada:" FontWeight="SemiBold"/>
+                <TextBlock x:Name="LblCompanyName" TextWrapping="Wrap"/>
+            </StackPanel>
+
+
+            <!-- Fila: Base de datos -->
+            <TextBlock Grid.Row="2" Grid.Column="0"
+             Text="&#xE73E;"
+             FontFamily="Segoe MDL2 Assets"
+             Foreground="ForestGreen"
+             Margin="0,2,8,0"/>
+            <StackPanel Grid.Row="2" Grid.Column="1">
+                <TextBlock Text="Base de datos (.accdb):" FontWeight="SemiBold"/>
+                <TextBlock x:Name="LblDbPath" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Grid>
+
     </StackPanel>
 </Page>

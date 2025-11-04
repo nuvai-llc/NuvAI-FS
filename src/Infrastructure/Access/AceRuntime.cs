@@ -12,6 +12,7 @@ using System.Windows;
 
 namespace NuvAI_FS.Infrastructure.Access
 {
+    [SupportedOSPlatform("windows")]
     public static class AceRuntime
     {
         // URLs oficiales (válidas):
@@ -59,7 +60,6 @@ namespace NuvAI_FS.Infrastructure.Access
         /// Asegura que ACE esté disponible. Si no lo está, pregunta al usuario y lo instala.
         /// En sistemas x64 intenta primero X64 y, si no queda disponible (conflictos), ofrece probar X86.
         /// </summary>
-        [SupportedOSPlatform("windows")]
         public static async Task<bool> EnsureAceInstalledAsync(Window? owner, CancellationToken ct = default)
         {
             if (!OperatingSystem.IsWindows())
@@ -201,7 +201,6 @@ namespace NuvAI_FS.Infrastructure.Access
         /// <summary>
         /// Ofrece instalación interactiva según bitness actual (atajo directo, si prefieres).
         /// </summary>
-        [SupportedOSPlatform("windows")]
         public static async Task<bool> OfferInstallAsync(Window owner, CancellationToken ct = default)
         {
             if (IsAceAvailable()) return true;

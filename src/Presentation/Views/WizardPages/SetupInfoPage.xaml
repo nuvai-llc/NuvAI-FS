@@ -1,0 +1,80 @@
+﻿<!-- src/Presentation/Views/WizardPages/SetupInfoPage.xaml -->
+<Page x:Class="NuvAI_FS.src.Presentation.Views.WizardPages.SetupInfoPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Información">
+    <Grid>
+        <!-- Dos columnas: icono (fija) + contenido (flex) -->
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" MinWidth="40"/>
+            <!-- columna icono -->
+            <ColumnDefinition/>
+            <!-- columna contenido -->
+        </Grid.ColumnDefinitions>
+
+        <!-- Columna izquierda: icono -->
+        <StackPanel Grid.Column="0" VerticalAlignment="Top" Height="40">
+            <Border Width="Auto" Height="Auto"
+                    CornerRadius="24">
+                <TextBlock Text="&#xE946;"                  
+                           FontFamily="Segoe MDL2 Assets"
+                           FontSize="40"
+                           Foreground="#2563EB"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           ToolTip="Información"/>
+            </Border>
+        </StackPanel>
+
+        <!-- Columna derecha: título + body scrolleable -->
+        <Grid Grid.Column="1" Margin="10,0,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <!-- header -->
+                <RowDefinition Height="12"/>
+                <RowDefinition Height="*"/>
+                <!-- body -->
+            </Grid.RowDefinitions>
+
+            <!-- Header (título) -->
+            <TextBlock Grid.Row="0"
+                       Text="Información"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center"/>
+
+            <!-- Body scrolleable -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,8,0,0" MaxWidth="680">
+                    <TextBlock Text="Antes de empezar" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,12">
+                        Esta configuración inicial te pedirá dos rutas de FACTUSOL y la empresa a usar:
+                    </TextBlock>
+
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock FontWeight="SemiBold" Text="Qué vas a configurar:"/>
+                        <ItemsControl Margin="12,6,0,0">
+                            <TextBlock TextWrapping="Wrap">• Carpeta de instalación de FACTUSOL (ej.: C:\Software DELSOL\FACTUSOL).</TextBlock>
+                            <TextBlock TextWrapping="Wrap">• Carpeta de Datos (ej.: C:\Software DELSOL\FACTUSOL\Datos).</TextBlock>
+                            <TextBlock TextWrapping="Wrap">• Empresa: se detecta leyendo los .accdb dentro de Datos\FS (necesita motor Access ACE).</TextBlock>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock FontWeight="SemiBold" Text="Notas:"/>
+                        <ItemsControl Margin="12,6,0,0">
+                            <TextBlock TextWrapping="Wrap">• Si falta el motor de Access, te ofreceremos instalarlo automáticamente.</TextBlock>
+                            <TextBlock TextWrapping="Wrap">• Puedes cambiar estas rutas más adelante desde Ajustes.</TextBlock>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <Border Background="#F6F8FA" CornerRadius="6" Padding="10" Margin="0,8,0,0">
+                        <TextBlock TextWrapping="Wrap">
+                            Pulsa “Siguiente” para comenzar la configuración de rutas.
+                        </TextBlock>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Page>

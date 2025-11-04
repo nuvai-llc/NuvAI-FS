@@ -40,5 +40,11 @@
     <!-- Opcional: forzar como código (en realidad no hace falta) -->
     <!-- <Compile Include="Properties\AssemblyInfo.cs" /> -->
   </ItemGroup>
+  <ItemGroup>
+    <None Remove="src\Assets\app.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="src\Assets\app.ico" />
+  </ItemGroup>
 
 </Project>

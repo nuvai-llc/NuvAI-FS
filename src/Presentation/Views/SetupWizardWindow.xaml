@@ -1,5 +1,4 @@
-﻿<!-- src/Presentation/Views/SetupWizardWindow.xaml -->
-<Window x:Class="NuvAI_FS.src.Presentation.Views.SetupWizardWindow"
+﻿<Window x:Class="NuvAI_FS.src.Presentation.Views.SetupWizardWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Configuración inicial"
@@ -10,23 +9,34 @@
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Header -->
             <RowDefinition Height="12"/>
             <RowDefinition Height="*"/>
-            <!-- Frame -->
             <RowDefinition Height="12"/>
             <RowDefinition Height="Auto"/>
-            <!-- Actions -->
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Paso " FontWeight="SemiBold"/>
-            <TextBlock x:Name="LblStepNumber" Text="1" FontWeight="SemiBold"/>
-            <TextBlock Text=" de 2" Margin="2,0,0,0"/>
-            <TextBlock Text=" — " />
-            <TextBlock x:Name="LblStepTitle" Text="Rutas de Factusol" />
-        </StackPanel>
+        <!-- Header con logo a la derecha -->
+        <!-- Header con logo a la derecha -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Paso " FontWeight="SemiBold"/>
+                <TextBlock x:Name="LblStepNumber" Text="1" FontWeight="SemiBold"/>
+                <TextBlock Text=" de 3" Margin="2,0,0,0"/>
+                <TextBlock Text=" — " />
+                <TextBlock x:Name="LblStepTitle" Text="Información" />
+            </StackPanel>
+
+            <Image Grid.Column="1"
+         Height="24"
+         Stretch="Uniform"
+         VerticalAlignment="Center" Source="/src/Assets/app.ico" HorizontalAlignment="Right"/>
+        </Grid>
+
 
         <!-- Contenido -->
         <Frame x:Name="WizardFrame" Grid.Row="2"
@@ -36,9 +46,9 @@
         <!-- Acciones -->
         <DockPanel Grid.Row="4" LastChildFill="False">
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                <Button x:Name="BtnBack" Content="Atrás" Visibility="Hidden" Width="90" Margin="0,0,8,0"/>
-                <Button x:Name="BtnNext" Content="Siguiente" IsEnabled="False" Width="100" />
-                <Button x:Name="BtnFinish" Content="Finalizar" Width="100" Visibility="Collapsed" Margin="8,0,0,0"/>
+                <Button x:Name="BtnBack" Content="Atrás" Width="90" Margin="0,0,8,0"/>
+                <Button x:Name="BtnNext" Content="Siguiente" Width="100" />
+                <Button x:Name="BtnFinish" Content="Finalizar" Width="100" Margin="8,0,0,0"/>
             </StackPanel>
         </DockPanel>
     </Grid>

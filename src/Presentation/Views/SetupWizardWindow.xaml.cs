@@ -1,128 +1,239 @@
-﻿using NuvAI_FS.src.Presentation.Setup;
+﻿using NuvAI_FS.src.Common;
+using NuvAI_FS.src.Presentation.Setup;
 using NuvAI_FS.src.Presentation.Views.WizardPages;
 using NuvAI_FS.src.Services;
+using System;
+using System.Runtime.Versioning;
 using System.Windows;
 
 namespace NuvAI_FS.src.Presentation.Views
 {
+    [SupportedOSPlatform("windows")]
     public partial class SetupWizardWindow : Window
     {
         private readonly SetupState _state = new();
         private readonly SettingsService _settings = new();
 
+        // 1: Info, 2: Rutas, 3: Resumen
         private int _step = 1;
-        private const int TOTAL_STEPS = 2;
+        private const int TOTAL_STEPS = 3;
 
-        // nuevo: control de si el paso 1 ya fue validado explícitamente
-        private bool _step1Validated = false;
+        // Habilitación dinámica del paso 2
+        private bool _step2Validated = false;   // rutas OK
+        private bool _companySelected = false;  // empresa seleccionada
+
+        // Anti reentradas (doble click en botones en máquinas lentas)
+        private bool _isBusy = false;
 
         public SetupWizardWindow()
         {
             InitializeComponent();
 
-            // Botones navegación
             BtnBack.Click += (_, __) => GoBack();
             BtnNext.Click += (_, __) => GoNext();
             BtnFinish.Click += (_, __) => Finish();
 
-            // Cargar primera página con 2 callbacks: (validityChanged, validated)
+            NavigateStep1();
+            UpdateHeader();
+            UpdateActions();
+        }
+
+        // ===== Navegación por pasos =====
+        private void NavigateStep1()
+        {
+            _step = 1;
+            WizardFrame.Navigate(new SetupInfoPage());
+        }
+
+        private void NavigateStep2()
+        {
+            _step = 2;
+
+            // Restaurar estado previo (por si el usuario vuelve atrás)
+            _step2Validated = _state.PathsValidated;
+            _companySelected = !string.IsNullOrWhiteSpace(_state.DatabasePath);
+
             WizardFrame.Navigate(new SetupPathsPage(
                 _state,
-                OnStepValidityChanged,
-                OnStep1Validated
+                validityChanged: _ => { /* no usado aquí para Next; controlamos por callbacks explícitos */ },
+                validatedCallback: OnStep2Validated,               // cuando "Validar" termina bien (rutas)
+                companySelectedChanged: OnCompanySelectedChanged   // cuando elige empresa en el combo
             ));
-
-            UpdateHeader();
-            // al inicio, ocultamos "Siguiente" hasta que se pulse Validar con éxito
-            UpdateActions(canNext: false, forceHideNext: true, showFinish: false);
         }
 
-        // la página nos avisa si su estado actual es válido (para habilitar/bloquear Validar allí si quieres)
-        private void OnStepValidityChanged(bool isValid)
+        private void NavigateStep3()
         {
-            // aquí no mostramos "Siguiente": solo lo mostramos cuando se pulsa Validar y pasa
-            // podrías usar este callback para habilitar/deshabilitar un botón "Validar" dentro de la page si lo deseas
+            _step = 3;
+            WizardFrame.Navigate(new SetupSummaryPage(_state));
         }
 
-        // la página nos avisa cuando el usuario pulsó "Validar" y todo está OK
-        private void OnStep1Validated()
+        // ===== Callbacks del paso 2 =====
+        private void OnStep2Validated()
         {
-            _step1Validated = true;
-            // ahora sí, mostramos "Siguiente"
-            UpdateActions(canNext: true, forceHideNext: false, showFinish: false);
+            _step2Validated = true;
+            _state.PathsValidated = true; // persistimos en el estado compartido
+            UpdateActions();
         }
 
+        private void OnCompanySelectedChanged(bool hasCompany)
+        {
+            _companySelected = hasCompany;
+            UpdateActions();
+        }
+
+        // ===== Botones =====
         private void GoBack()
         {
-            if (_step <= 1) return;
-            _step--;
-            if (_step == 1)
+            if (_isBusy) return;
+            if (_step == 1) return;
+
+            _isBusy = true;
+            SetAllButtonsEnabled(false);
+
+            try
             {
-                WizardFrame.Navigate(new SetupPathsPage(_state, OnStepValidityChanged, OnStep1Validated));
+                if (_step == 3) NavigateStep2();
+                else if (_step == 2) NavigateStep1();
+
                 UpdateHeader();
-                UpdateActions(canNext: _step1Validated, forceHideNext: !_step1Validated, showFinish: false);
+                UpdateActions();
+            }
+            finally
+            {
+                _isBusy = false;
+                SetAllButtonsEnabled(true);
             }
         }
 
         private void GoNext()
         {
-            if (_step == 1)
-            {
-                // solo dejamos pasar si ya fue validado
-                if (!_step1Validated) return;
+            if (_isBusy) return;
 
-                _step = 2;
-                WizardFrame.Navigate(new SetupSummaryPage(_state));
+            _isBusy = true;
+            SetAllButtonsEnabled(false);
+
+            try
+            {
+                if (_step == 1)
+                {
+                    NavigateStep2();
+                }
+                else if (_step == 2)
+                {
+                    // Sólo avanzamos si ya se han validado rutas y hay empresa seleccionada
+                    if (!(_step2Validated && _companySelected))
+                    {
+                        // No avanzamos, pero tampoco crasheamos
+                        return;
+                    }
+                    NavigateStep3();
+                }
+
                 UpdateHeader();
-                UpdateActions(canNext: true, forceHideNext: true, showFinish: true);
+                UpdateActions();
+            }
+            finally
+            {
+                _isBusy = false;
+                SetAllButtonsEnabled(true);
             }
         }
 
         private void Finish()
         {
-            // Persistir en registro
-            _settings.SetString("FactusolInstallPath", _state.FactusolInstallPath);
-            _settings.SetString("FactusolDataPath", _state.DataPath);
-            _settings.MarkSetupCompleted();
+            if (_isBusy) return;
+
+            _isBusy = true;
+            SetAllButtonsEnabled(false);
 
             try
             {
-                var version = NuvAI_FS.src.Common.AppInfo.InformationalVersion;
-                if (!string.IsNullOrWhiteSpace(version))
-                    _settings.SetInstalledVersion(version);
-            }
-            catch { }
+                // Validación final defensiva (por si el usuario llegó aquí de forma anómala)
+                if (!_state.PathsValidated || string.IsNullOrWhiteSpace(_state.DatabasePath))
+                {
+                    SafeInfo("Debes validar las rutas y seleccionar una empresa antes de finalizar.", "Faltan datos");
+                    return;
+                }
 
-            try { this.DialogResult = true; } catch { }
-            this.Close();
+                if (!SettingsService.IsStateValid(_state))
+                {
+                    SafeInfo("Las rutas indicadas no son válidas o la base de datos seleccionada no existe.", "Datos no válidos");
+                    return;
+                }
+
+                var version = AppInfo.InformationalVersion ?? string.Empty;
+
+                // Guardado robusto con rollback interno (no lanza excepción)
+                var ok = _settings.TrySaveSetup(_state, installedVersion: version, markCompleted: true);
+                if (!ok)
+                {
+                    SafeInfo("No se pudo guardar la configuración. Revisa permisos o vuelve a intentarlo.", "Guardado fallido");
+                    return;
+                }
+
+                try { this.DialogResult = true; } catch { /* noop */ }
+                Close();
+            }
+            finally
+            {
+                _isBusy = false;
+                // No re-habilitamos botones si vamos a cerrar, pero por seguridad:
+                SetAllButtonsEnabled(true);
+            }
         }
 
+        // ===== UI util =====
         private void UpdateHeader()
         {
             LblStepNumber.Text = _step.ToString();
             LblStepTitle.Text = _step switch
             {
-                1 => "Rutas de Factusol",
-                2 => "Resumen",
+                1 => "Información",
+                2 => "Rutas de Factusol",
+                3 => "Resumen",
                 _ => string.Empty
             };
         }
 
-        private void UpdateActions(bool canNext, bool forceHideNext, bool showFinish)
+        private void UpdateActions()
         {
-            BtnBack.IsEnabled = _step > 1;
+            // Visibilidad por paso
+            BtnBack.Visibility = (_step == 1) ? Visibility.Collapsed : Visibility.Visible;
+            BtnNext.Visibility = (_step == 3) ? Visibility.Collapsed : Visibility.Visible;
+            BtnFinish.Visibility = (_step == 3) ? Visibility.Visible : Visibility.Collapsed;
 
-            if (showFinish)
+            // Habilitación
+            if (_step == 1)
             {
-                BtnNext.Visibility = Visibility.Collapsed;
-                BtnFinish.Visibility = Visibility.Visible;
+                BtnNext.IsEnabled = true;
             }
-            else
+            else if (_step == 2)
             {
-                BtnFinish.Visibility = Visibility.Collapsed;
-                BtnNext.Visibility = forceHideNext ? Visibility.Collapsed : Visibility.Visible;
-                BtnNext.IsEnabled = canNext;
+                BtnNext.IsEnabled = _step2Validated && _companySelected;
             }
+            else if (_step == 3)
+            {
+                BtnFinish.IsEnabled = true;
+            }
+        }
+
+        private void SetAllButtonsEnabled(bool enabled)
+        {
+            BtnBack.IsEnabled = enabled && BtnBack.Visibility == Visibility.Visible;
+            BtnNext.IsEnabled = enabled && BtnNext.Visibility == Visibility.Visible;
+            BtnFinish.IsEnabled = enabled && BtnFinish.Visibility == Visibility.Visible;
+        }
+
+        // ===== Mensajes seguros (sin crashear si no hay owner visible) =====
+        private void SafeInfo(string text, string title)
+        {
+            try
+            {
+                var owner = this; // la propia ventana del wizard
+                if (owner != null && owner.IsVisible)
+                    MessageBox.Show(owner, text, title, MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch { /* noop */ }
         }
     }
 }

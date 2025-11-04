@@ -8,9 +8,9 @@ using System.Windows;
 [assembly: AssemblyProduct("NuvAI FS")]
 
 // Versión unificada (ajustada por CI)
-[assembly: AssemblyVersion("1.0.15.0")]            // CLR/bindings
-[assembly: AssemblyFileVersion("1.0.15.0")]        // Versión de archivo
-[assembly: AssemblyInformationalVersion("1.0.15")] // SemVer visible (UI, logs)
+[assembly: AssemblyVersion("1.0.16.0")]            // CLR/bindings
+[assembly: AssemblyFileVersion("1.0.16.0")]        // Versión de archivo
+[assembly: AssemblyInformationalVersion("1.0.16")] // SemVer visible (UI, logs)
 
 [assembly: NeutralResourcesLanguage("es-ES")]
 
