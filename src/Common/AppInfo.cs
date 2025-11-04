@@ -1,4 +1,4 @@
-﻿// AppInfo.cs
+﻿// src/Common/AppInfo.cs
 using System.Reflection;
 
 namespace NuvAI_FS.src.Common
@@ -9,6 +9,18 @@ namespace NuvAI_FS.src.Common
             Assembly.GetExecutingAssembly()
                     .GetCustomAttribute<AssemblyProductAttribute>()?.Product
             ?? Assembly.GetExecutingAssembly().GetName().Name
+            ?? "NuvAI FS";
+
+        // NUEVO: nombre de compañía (para claves de registro, etc.)
+        public static string Company =>
+            Assembly.GetExecutingAssembly()
+                    .GetCustomAttribute<AssemblyCompanyAttribute>()?.Company
+            ?? "NuvAI LLC";
+
+        // NUEVO: product “limpio” si lo quieres distinto al de ProductName
+        public static string Product =>
+            Assembly.GetExecutingAssembly()
+                    .GetCustomAttribute<AssemblyProductAttribute>()?.Product
             ?? "NuvAI FS";
 
         public static string InformationalVersion =>

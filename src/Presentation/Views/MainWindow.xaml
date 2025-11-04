@@ -1,28 +1,31 @@
 ﻿<Window x:Class="NuvAI_FS.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="NuvAI FS" Height="320" Width="520"
+        Title="NuvAI FS"
+        MinHeight="130"
+        SizeToContent="Height" Width="480"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="CanResize">
+        ResizeMode="NoResize"
+        ShowInTaskbar="True"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="Auto"
+        FontSize="13"
+        Loaded="Window_Loaded">
 
-    <!-- Atajos de teclado ligeros (no bloqueantes) -->
+    <!-- Atajos -->
     <Window.InputBindings>
-        <!-- Configuración: Ctrl+, -->
         <KeyBinding Key="OemComma" Modifiers="Control" Command="{x:Static ApplicationCommands.Properties}" />
-        <!-- Buscar actualización: Ctrl+U -->
         <KeyBinding Key="U" Modifiers="Control" Command="{x:Static ApplicationCommands.Replace}" />
-        <!-- Ayuda: F1 -->
         <KeyBinding Key="F1" Command="{x:Static ApplicationCommands.Help}" />
     </Window.InputBindings>
 
     <Window.CommandBindings>
-        <!-- Configuración -->
         <CommandBinding Command="{x:Static ApplicationCommands.Properties}"
                         Executed="OpenSettings_Executed" CanExecute="Always_CanExecute"/>
-        <!-- Buscar actualización (reusa tu UpdateBtn_Click en el code-behind) -->
         <CommandBinding Command="{x:Static ApplicationCommands.Replace}"
                         Executed="InvokeUpdate_Executed" CanExecute="Always_CanExecute"/>
-        <!-- Ayuda -->
         <CommandBinding Command="{x:Static ApplicationCommands.Help}"
                         Executed="OpenHelp_Executed" CanExecute="Always_CanExecute"/>
     </Window.CommandBindings>
@@ -30,35 +33,76 @@
     <DockPanel LastChildFill="True">
 
         <!-- Menú superior -->
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="_Ajustes">
-                <MenuItem Header="_Configuración" 
-                          Command="{x:Static ApplicationCommands.Properties}"/>
-                <Separator/>
-                <MenuItem Header="_Buscar actualización  (Ctrl+U)" 
-                          Command="{x:Static ApplicationCommands.Replace}"/>
-                <Separator/>
-                <MenuItem Header="_Ayuda  (F1)"
-                          Command="{x:Static ApplicationCommands.Help}"/>
+        <Menu DockPanel.Dock="Top" Background="White" Padding="0,3" SnapsToDevicePixels="True" >
+
+            <MenuItem Header="_Ajustes" Padding="5,4">
+                <MenuItem Header="_Buscar actualización" Command="{x:Static ApplicationCommands.Replace}"/>
+                <MenuItem  Header="_Ayuda" Command="{x:Static ApplicationCommands.Help}"/>
+            </MenuItem>
+            <MenuItem  Header="_Ayuda" Padding="5,4">
+                <MenuItem  Header="_Configuración" Command="{x:Static ApplicationCommands.Properties}"/>
             </MenuItem>
         </Menu>
 
-        <!-- Contenido principal vacío (placeholder) -->
-        <Grid Margin="12">
-            <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="6" Padding="12">
-                <TextBlock Text="Bienvenido a NuvAI FS"
-                           FontSize="16"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           Opacity="0.85"/>
-            </Border>
-        </Grid>
+        <!-- Contenido principal -->
+        <Grid Margin="12,10,12,10">
+            <Grid.RowDefinitions>
+                <!-- Fila URL -->
+                <RowDefinition Height="Auto"/>
+                <!-- Separador pequeño -->
+                <RowDefinition Height="4"/>
+                <!-- Fila info -->
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <!-- LED -->
+                <ColumnDefinition Width="Auto" MinWidth="18"/>
+                <!-- gap -->
+                <ColumnDefinition Width="6"/>
+                <!-- URL -->
+                <ColumnDefinition Width="13*"/>
+                <ColumnDefinition Width="11*"/>
+            </Grid.ColumnDefinitions>
 
-        <!-- Barra de estado mínima -->
-        <StatusBar DockPanel.Dock="Bottom">
-            <StatusBarItem>
-                <TextBlock x:Name="StatusText" Text="Listo" />
-            </StatusBarItem>
-        </StatusBar>
+            <!-- LED a la izquierda del input -->
+            <Ellipse x:Name="Led" Grid.Column="0"
+                     Width="14" Height="14"
+                     StrokeThickness="0.8"
+                     Stroke="#66000000"
+                     Fill="#FFF1C40F"
+                     VerticalAlignment="Center"
+                     Margin="3,0,1,0"/>
+
+            <!-- URL de solo lectura (copiable al hacer click) -->
+            <TextBox x:Name="TxtUrl"
+                     Grid.Row="0" Grid.Column="2"
+                     IsReadOnly="True"
+                     Text="https://&lt;id-de-cliente&gt;.clients.nuvai.es"
+                     BorderBrush="#DDDDDD"
+                     Opacity="0.5"
+                     GotFocus="TxtUrl_GotFocus"
+                     PreviewMouseLeftButtonDown="TxtUrl_PreviewMouseLeftButtonDown"
+                     MouseLeftButtonUp="TxtUrl_MouseLeftButtonUp"
+                     Cursor="Hand"
+                     ToolTip="Click para copiar la URL"
+                     Padding="6"
+                     HorizontalContentAlignment="Left"
+                     VerticalContentAlignment="Center" Grid.ColumnSpan="2" Margin="0,0,0,5"/>
+
+            <!-- Texto de información (debajo del input) -->
+            <TextBlock x:Name="InfoText"
+                       Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"
+                       Text="Iniciando…"
+                       Foreground="#99000000"
+                       TextWrapping="Wrap"
+                       TextTrimming="CharacterEllipsis"
+                       MaxHeight="32"
+                       ToolTipService.ShowDuration="60000" Margin="0,4,0,0" Grid.RowSpan="2">
+                <TextBlock.ToolTip>
+                    <!-- tooltip con el texto completo -->
+                    <ToolTip Content="{Binding Text, RelativeSource={RelativeSource AncestorType=TextBlock}}"/>
+                </TextBlock.ToolTip>
+            </TextBlock>
+        </Grid>
     </DockPanel>
 </Window>

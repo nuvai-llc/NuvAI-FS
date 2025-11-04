@@ -51,7 +51,6 @@ namespace NuvAI_FS.Infrastructure.Services
             public int? code { get; set; }      // 200 OK, 402 no encontrada, etc. (opcional)
         }
 
-
         public LicenseService(string? backendBaseUrl = null)
         {
             _baseUrl = (backendBaseUrl ?? Environment.GetEnvironmentVariable("BACKEND_BASE_URL") ?? "https://nuvai-fs-backend-production.up.railway.app/").TrimEnd('/');
@@ -146,8 +145,7 @@ namespace NuvAI_FS.Infrastructure.Services
             }
         }
 
-
-        // 5) Guardar par clave/valor en HKCU
+        // 5) Guardar par(es) en registro
         public bool SaveLicense(string key, string value)
         {
             try
@@ -269,7 +267,6 @@ namespace NuvAI_FS.Infrastructure.Services
             }
         }
 
-        // Wrapper seguro: si hay error de red/JSON devuelve null en lugar de propagar excepción
-
+       
     }
 }
