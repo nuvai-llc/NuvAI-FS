@@ -1,3 +1,4 @@
+using NuvAI_FS.src.Common;
 using System.Reflection;
 using System.Resources;
 using System.Windows;
@@ -8,9 +9,9 @@ using System.Windows;
 [assembly: AssemblyProduct("NuvAI FS")]
 
 // Versión unificada (ajustada por CI)
-[assembly: AssemblyVersion("1.0.17.0")]            // CLR/bindings
-[assembly: AssemblyFileVersion("1.0.17.0")]        // Versión de archivo
-[assembly: AssemblyInformationalVersion("1.0.17")] // SemVer visible (UI, logs)
+[assembly: AssemblyVersion(AppInfo.AssemblyVer)]            // CLR/bindings
+[assembly: AssemblyFileVersion(AppInfo.FileVer)]        // Versión de archivo
+[assembly: AssemblyInformationalVersion(AppInfo.SemVer)] // SemVer visible (UI, logs)
 
 [assembly: NeutralResourcesLanguage("es-ES")]
 

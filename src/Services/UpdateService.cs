@@ -2,6 +2,7 @@
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Windows;
 using Velopack;
 
 namespace NuvAI_FS.src.Services
@@ -149,5 +150,47 @@ namespace NuvAI_FS.src.Services
             DateTime? publishedAt,
             string? notes
         );
+
+        public async Task<bool> CheckAndPromptAsync(Window? owner, string currentVersion)
+        {
+            var check = await CheckAsync(currentVersion);
+            if (check.Outcome != CheckOutcome.NewVersionAvailable || check.Latest is null)
+                return false;
+
+            var latest = check.Latest;
+            var fecha = latest.publishedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "desconocida";
+            var notas = string.IsNullOrWhiteSpace(latest.notes) ? "—" : latest.notes;
+
+            var msg =
+                        $@"Hay una nueva versión disponible.
+
+                Actual:   {currentVersion}
+                Nueva:    {latest.version}
+                Fecha:    {fecha}
+                Notas:    {notas}
+
+                ¿Quieres actualizar ahora? (la aplicación se reiniciará)";
+
+            var result = owner is null
+                ? MessageBox.Show(msg, "Actualización disponible", MessageBoxButton.YesNo, MessageBoxImage.Question)
+                : MessageBox.Show(owner, msg, "Actualización disponible", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes) return false;
+
+            var apply = await DownloadAndApplyAsync(latest.baseUrl);
+
+            // Normalmente ApplyAndRestart no vuelve; si vuelve con error, informa.
+            if (apply.Outcome == ApplyOutcome.Error)
+            {
+                if (owner is null)
+                    MessageBox.Show(apply.Message ?? "Error al aplicar la actualización.",
+                                    "Actualización", MessageBoxButton.OK, MessageBoxImage.Error);
+                else
+                    MessageBox.Show(owner, apply.Message ?? "Error al aplicar la actualización.",
+                                    "Actualización", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            return true;
+        }
     }
 }

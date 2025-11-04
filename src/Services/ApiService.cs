@@ -1,6 +1,9 @@
 ﻿// src/Services/ApiService.cs
 #nullable enable
 using System;
+using System.Data;
+using System.Data.Common;
+using System.Data.OleDb;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
@@ -15,10 +18,10 @@ namespace NuvAI_FS.src.Services
 {
     /// <summary>
     /// API HTTP local muy ligera basada en HttpListener.
-    /// Endpoints (mock): 
+    /// Endpoints:
     ///  GET  /LeerRegistro
     ///  GET  /LeerConfiguracion
-    ///  POST /CargaTabla
+    ///  POST /CargaTabla        (→ SELECT * FROM [tabla] en el ACCDB de registro)
     ///  POST /LanzarConsulta
     ///  POST /EscribirRegistro
     ///  POST /ActualizarRegistro
@@ -169,13 +172,45 @@ namespace NuvAI_FS.src.Services
                         await WriteJsonAsync(resp, new { ok = true, endpoint = "BorrarRegistros" }).ConfigureAwait(false);
                         return;
 
+                    // =================== IMPLEMENTADO: POST /cargatabla ===================
                     case "/cargatabla" when method == "POST":
                         {
-                            var body = await ReadBodyAsync(req).ConfigureAwait(false);
-                            ShowPostBodyOnUiThread("CargaTabla", body);
-                            await WriteJsonAsync(resp, new { ok = true, endpoint = "CargaTabla" }).ConfigureAwait(false);
+                            var bodyRaw = await ReadBodyAsync(req).ConfigureAwait(false);
+                            ShowPostBodyOnUiThread("CargaTabla", bodyRaw); // debug
+
+                            // Body mínimo: { "tabla": "F_ART" }
+                            CargarTablaBody? body;
+                            try
+                            {
+                                body = JsonSerializer.Deserialize<CargarTablaBody>(bodyRaw, new JsonSerializerOptions
+                                {
+                                    PropertyNameCaseInsensitive = true
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                await WriteJsonAsync(resp, new { ok = false, error = "INVALID_JSON: " + ex.Message }, 400).ConfigureAwait(false);
+                                return;
+                            }
+
+                            if (body is null || string.IsNullOrWhiteSpace(body.Tabla))
+                            {
+                                await WriteJsonAsync(resp, new { ok = false, error = "El campo 'tabla' es obligatorio." }, 400).ConfigureAwait(false);
+                                return;
+                            }
+
+                            try
+                            {
+                                var rows = await QueryAllAsync(body.Tabla, ct).ConfigureAwait(false);
+                                await WriteJsonAsync(resp, new { ok = true, data = new { items = rows, total = rows.Count } }).ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                await WriteJsonAsync(resp, new { ok = false, error = ex.Message }, 500).ConfigureAwait(false);
+                            }
                             return;
                         }
+                    // ======================================================================
 
                     case "/lanzarconsulta" when method == "POST":
                         {
@@ -315,6 +350,118 @@ namespace NuvAI_FS.src.Services
             {
                 Debug.WriteLine($"[ApiService] {title}\n{text}");
             }
+        }
+
+        // =================== Acceso a ACCDB (mínimo) ===================
+
+        // Body mínimo de /cargatabla
+        private sealed class CargarTablaBody
+        {
+            public string? Tabla { get; set; }
+        }
+
+        // Lee del registro la ruta guardada por tu Setup (HKCU\Software\<Company>\<Product>\DatabasePath)
+        private static string? GetDatabasePathFromRegistry()
+        {
+            try
+            {
+                return RegistryService.GetAppKeyString("DatabasePath");
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        // Devuelve el provider ACE disponible (preferimos 16.0; si no, 12.0)
+        private static string? ResolveAceProvider()
+        {
+            // No podemos “probar” sin abrir; devolvemos preferencia y dejamos que la conexión falle si no existe.
+            return "Microsoft.ACE.OLEDB.16.0"; // si no estuviera, se puede cambiar a 12.0 en el catch de conexión
+        }
+
+        // Acepta A-Z, 0-9 y "_" y envuelve en []
+        private static string SanitizeIdentifier(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "[Unknown]";
+            var sb = new StringBuilder(name.Length);
+            foreach (var ch in name.Trim())
+                if (char.IsLetterOrDigit(ch) || ch == '_') sb.Append(ch);
+            if (sb.Length == 0) sb.Append("Unknown");
+            return $"[{sb}]";
+        }
+
+        // Ejecuta SELECT * FROM [tabla] contra el ACCDB del registro
+        private static async Task<List<Dictionary<string, object?>>> QueryAllAsync(string tabla, CancellationToken ct)
+        {
+            var accdbPath = GetDatabasePathFromRegistry();
+            if (string.IsNullOrWhiteSpace(accdbPath) || !System.IO.File.Exists(accdbPath))
+                throw new InvalidOperationException("No se encontró la base de datos ACCDB en el registro o la ruta no existe.");
+
+            var provider = ResolveAceProvider();
+            var cs = $"Provider={provider};Data Source={accdbPath};Persist Security Info=False;";
+
+            var tableId = SanitizeIdentifier(tabla);
+            var sql = $"SELECT * FROM {tableId};";
+
+            // Ejecutamos en pool de hilos para no bloquear escucha
+            return await Task.Run(() =>
+            {
+                var result = new List<Dictionary<string, object?>>();
+
+                try
+                {
+                    using var cn = new OleDbConnection(cs);
+                    cn.Open();
+
+                    using var cmd = new OleDbCommand(sql, cn) { CommandType = CommandType.Text };
+                    using var rd = cmd.ExecuteReader();
+                    if (rd is null) return result;
+
+                    var schema = rd.GetColumnSchema();
+                    while (rd.Read())
+                    {
+                        var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+                        for (int i = 0; i < rd.FieldCount; i++)
+                        {
+                            var colName = schema?[i].ColumnName ?? rd.GetName(i);
+                            var val = rd.IsDBNull(i) ? null : rd.GetValue(i);
+                            row[colName] = val;
+                        }
+                        result.Add(row);
+                    }
+                }
+                catch (OleDbException ex)
+                {
+                    // Intento automático con ACE 12.0 si 16.0 falla por provider
+                    if (provider == "Microsoft.ACE.OLEDB.16.0")
+                    {
+                        var cs12 = $"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={accdbPath};Persist Security Info=False;";
+                        using var cn = new OleDbConnection(cs12);
+                        cn.Open();
+                        using var cmd = new OleDbCommand(sql, cn) { CommandType = CommandType.Text };
+                        using var rd = cmd.ExecuteReader();
+                        if (rd is null) return result;
+
+                        var schema = rd.GetColumnSchema();
+                        while (rd.Read())
+                        {
+                            var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+                            for (int i = 0; i < rd.FieldCount; i++)
+                            {
+                                var colName = schema?[i].ColumnName ?? rd.GetName(i);
+                                var val = rd.IsDBNull(i) ? null : rd.GetValue(i);
+                                row[colName] = val;
+                            }
+                            result.Add(row);
+                        }
+                        return result;
+                    }
+                    throw new InvalidOperationException($"Error de OLEDB: {ex.Message}", ex);
+                }
+
+                return result;
+            }, ct).ConfigureAwait(false);
         }
     }
 }

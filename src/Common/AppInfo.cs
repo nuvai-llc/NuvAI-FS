@@ -5,6 +5,10 @@ namespace NuvAI_FS.src.Common
 {
     public static class AppInfo
     {
+        public const string SemVer = "1.0.18";     // único sitio a tocar
+        public const string FileVer = SemVer + ".0";
+        public const string AssemblyVer = SemVer + ".0";
+
         public static string ProductName =>
             Assembly.GetExecutingAssembly()
                     .GetCustomAttribute<AssemblyProductAttribute>()?.Product

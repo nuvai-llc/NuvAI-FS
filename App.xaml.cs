@@ -1,15 +1,21 @@
 ﻿// App.xaml.cs
 using NuvAI_FS.Infrastructure.Services;
 using NuvAI_FS.Presentation.Views;
+using NuvAI_FS.src.Common;
 using NuvAI_FS.src.Presentation.Views;
 using NuvAI_FS.src.Services;
+using System.Runtime.Versioning;
 using System.Windows;
 using Velopack;
 
 namespace NuvAI_FS
 {
+    [SupportedOSPlatform("windows")]
     public partial class App : Application
     {
+
+        private const string LatestUrl = "https://pub-ad842211e29b462e97dfbfd5bb04312c.r2.dev/fs/latest.json";
+
         private async void OnStartup(object sender, StartupEventArgs e)
         {
             VelopackApp.Build().Run();
@@ -57,6 +63,17 @@ namespace NuvAI_FS
                     Shutdown();
                     return;
                 }
+            }
+
+
+            try
+            {
+                var upd = new UpdateService(LatestUrl);
+                await upd.CheckAndPromptAsync(owner: null, currentVersion: AppInfo.InformationalVersion ?? string.Empty);
+            }
+            catch
+            {
+
             }
 
             // Ahora sí, abre el MainWindow
