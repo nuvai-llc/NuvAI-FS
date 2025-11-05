@@ -1,4 +1,4 @@
-﻿<Window x:Class="NuvAI_FS.src.Presentation.Views.Shared.LoadingDialog"
+﻿<Window x:Class="NuvAI_FS.Src.Presentation.Views.Shared.LoadingDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Procesando..."

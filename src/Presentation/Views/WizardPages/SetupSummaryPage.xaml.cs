@@ -1,9 +1,9 @@
-﻿using NuvAI_FS.src.Presentation.Setup;
+﻿using NuvAI_FS.Src.Presentation.Setup;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 
-namespace NuvAI_FS.src.Presentation.Views.WizardPages
+namespace NuvAI_FS.Src.Presentation.Views.WizardPages
 {
     public partial class SetupSummaryPage : Page
     {

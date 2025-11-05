@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using Velopack;
 
-namespace NuvAI_FS.src.Services
+namespace NuvAI_FS.Src.Services
 {
     /// <summary>
     /// Servicio reutilizable para gestionar actualizaciones con Velopack.

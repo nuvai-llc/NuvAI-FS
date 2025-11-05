@@ -1,12 +1,12 @@
 ﻿// src/Services/RegistryService.cs
 #nullable enable
 using Microsoft.Win32;
-using NuvAI_FS.src.Common; // AppInfo.Company / AppInfo.Product
+using NuvAI_FS.Src.Common; // AppInfo.Company / AppInfo.Product
 using System;
 using System.Linq;
 using System.Runtime.Versioning;
 
-namespace NuvAI_FS.src.Services
+namespace NuvAI_FS.Src.Services
 {
     /// <summary>
     /// Helper genérico y reusable para trabajar con el Registro.

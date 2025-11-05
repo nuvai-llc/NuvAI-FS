@@ -2,12 +2,12 @@
 using Microsoft.Win32;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using NuvAI_FS.src.Presentation.Setup;
+using NuvAI_FS.Src.Presentation.Setup;
 using System.Runtime.Versioning;
 using System;
 using System.IO;
 
-namespace NuvAI_FS.src.Services
+namespace NuvAI_FS.Src.Services
 {
     /// <summary>
     /// Servicio de settings en HKCU\Software\{Company}\{Product}

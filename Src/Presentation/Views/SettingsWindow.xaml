@@ -1,0 +1,103 @@
+﻿<Window x:Class="NuvAI_FS.Src.Presentation.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ajustes - NuvAI FS"
+        MinHeight="360" MinWidth="720"
+        Width="780" Height="460"
+        SizeToContent="Width"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        UseLayoutRounding="True">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="150" />
+            <ColumnDefinition Width="12" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <TreeView x:Name="NavTree"
+          Grid.Row="0" Grid.Column="0"
+          ScrollViewer.CanContentScroll="True"
+          SelectedItemChanged="NavTree_SelectedItemChanged">
+
+            <!-- Estilo para que la selección/hover ocupen todo el ancho -->
+            <TreeView.ItemContainerStyle>
+                <Style TargetType="TreeViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TreeViewItem">
+                                <Grid SnapsToDevicePixels="True">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Banda a ancho completo -->
+                                    <Border x:Name="Bd" Grid.Row="0" Padding="2" Background="Transparent">
+                                        <!-- Cabecera por defecto -->
+                                        <ContentPresenter x:Name="PART_Header"
+                                  ContentSource="Header"
+                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <!-- Hijos (por si un día añades subnodos) -->
+                                    <ItemsPresenter x:Name="ItemsHost"
+                              Grid.Row="1"
+                              Margin="16,0,0,0"/>
+                                </Grid>
+
+                                <ControlTemplate.Triggers>
+                                    <!-- Mostrar hijos solo si hay -->
+                                    <Trigger Property="HasItems" Value="false">
+                                        <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed"/>
+                                    </Trigger>
+
+                                    <!-- Selección a todo ancho -->
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Bd" Property="Background"
+                        Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                        <Setter Property="Foreground"
+                        Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}"/>
+                                    </Trigger>
+
+                                    <!-- Hover a todo ancho -->
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bd" Property="Background"
+                        Value="{DynamicResource {x:Static SystemColors.HighlightColor}}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </TreeView.ItemContainerStyle>
+
+            <TreeViewItem Header="General"    Tag="General"    IsSelected="True"/>
+            <TreeViewItem Header="Empresa" Tag="Enterprise"/>
+            <TreeViewItem Header="Actualizaciones" Tag="Updates"/>
+        </TreeView>
+
+
+        <Frame x:Name="SettingsFrame"
+               ScrollViewer.VerticalScrollBarVisibility="Auto"
+               Grid.Row="0" Grid.Column="2"
+               NavigationUIVisibility="Hidden"
+               JournalOwnership="OwnsJournal" />
+
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="0,5,0,0">
+            <Button Content="Salir"   Width="96" Height="20" Margin="0,0,8,0" Click="BtnExit_Click"/>
+            <Button Content="Guardar" Name="BtnSave" IsEnabled="False" Width="96" Height="20" Click="BtnSave_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

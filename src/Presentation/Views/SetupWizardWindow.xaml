@@ -1,8 +1,9 @@
-﻿<Window x:Class="NuvAI_FS.src.Presentation.Views.SetupWizardWindow"
+﻿<Window x:Class="NuvAI_FS.Src.Presentation.Views.SetupWizardWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Configuración inicial"
-        Height="440" Width="720"
+        MinHeight="440" Width="720"
+        SizeToContent="Height"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         UseLayoutRounding="True">
@@ -46,7 +47,7 @@
         <!-- Acciones -->
         <DockPanel Grid.Row="4" LastChildFill="False">
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                <Button x:Name="BtnBack" Content="Atrás" Width="90" Margin="0,0,8,0"/>
+                <Button x:Name="BtnBack"  Content="Atrás" Width="90" Margin="0,0,8,0"/>
                 <Button x:Name="BtnNext" Content="Siguiente" Width="100" />
                 <Button x:Name="BtnFinish" Content="Finalizar" Width="100" Margin="8,0,0,0"/>
             </StackPanel>

@@ -19,6 +19,7 @@
         <KeyBinding Key="OemComma" Modifiers="Control" Command="{x:Static ApplicationCommands.Properties}" />
         <KeyBinding Key="U" Modifiers="Control" Command="{x:Static ApplicationCommands.Replace}" />
         <KeyBinding Key="F1" Command="{x:Static ApplicationCommands.Help}" />
+        <KeyBinding Key="F4" Command="{x:Static ApplicationCommands.Properties}" />
     </Window.InputBindings>
 
     <Window.CommandBindings>
@@ -36,12 +37,15 @@
         <Menu DockPanel.Dock="Top" Background="White" Padding="0,3" SnapsToDevicePixels="True" >
 
             <MenuItem Header="_Ajustes" Padding="5,4">
+                <MenuItem Header="_Configuración" Command="{x:Static ApplicationCommands.Properties}"/>
+                <Separator/>
                 <MenuItem Header="_Buscar actualización" Command="{x:Static ApplicationCommands.Replace}"/>
-                <MenuItem  Header="_Ayuda" Command="{x:Static ApplicationCommands.Help}"/>
             </MenuItem>
-            <MenuItem  Header="_Ayuda" Padding="5,4">
-                <MenuItem  Header="_Configuración" Command="{x:Static ApplicationCommands.Properties}"/>
+
+            <MenuItem Header="_Ayuda" Padding="5,4">
+                <MenuItem Header="_Acerca de" Command="{x:Static ApplicationCommands.Help}"/>
             </MenuItem>
+
         </Menu>
 
         <!-- Contenido principal -->

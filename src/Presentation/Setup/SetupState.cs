@@ -1,4 +1,4 @@
-﻿namespace NuvAI_FS.src.Presentation.Setup
+﻿namespace NuvAI_FS.Src.Presentation.Setup
 {
     public sealed class SetupState
     {

@@ -7,7 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 
-namespace NuvAI_FS.Infrastructure.Services
+namespace NuvAI_FS.Src.Services
 {
     public sealed class LicenseService
     {

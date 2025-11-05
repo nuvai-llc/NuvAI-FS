@@ -1,11 +1,11 @@
 ﻿// src/Common/AppInfo.cs
 using System.Reflection;
 
-namespace NuvAI_FS.src.Common
+namespace NuvAI_FS.Src.Common
 {
     public static class AppInfo
     {
-        public const string SemVer = "1.0.18";     // único sitio a tocar
+        public const string SemVer = "1.0.19";     // único sitio a tocar
         public const string FileVer = SemVer + ".0";
         public const string AssemblyVer = SemVer + ".0";
 

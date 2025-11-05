@@ -1,9 +1,7 @@
 ﻿// App.xaml.cs
-using NuvAI_FS.Infrastructure.Services;
-using NuvAI_FS.Presentation.Views;
-using NuvAI_FS.src.Common;
-using NuvAI_FS.src.Presentation.Views;
-using NuvAI_FS.src.Services;
+using NuvAI_FS.Src.Services;
+using NuvAI_FS.Src.Common;
+using NuvAI_FS.Src.Presentation.Views;
 using System.Runtime.Versioning;
 using System.Windows;
 using Velopack;

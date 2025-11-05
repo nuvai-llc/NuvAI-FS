@@ -1,6 +1,6 @@
 ﻿using System.Windows;
 
-namespace NuvAI_FS.src.Presentation.Views.Shared
+namespace NuvAI_FS.Src.Presentation.Views.Shared
 {
     public partial class LoadingDialog : Window
     {

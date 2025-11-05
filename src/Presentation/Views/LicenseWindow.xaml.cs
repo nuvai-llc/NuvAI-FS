@@ -1,11 +1,11 @@
 ﻿// Presentation/Views/LicenseWindow.xaml.cs
-using NuvAI_FS.Infrastructure.Services;
+using NuvAI_FS.Src.Services;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-namespace NuvAI_FS.Presentation.Views
+namespace NuvAI_FS.Src.Presentation.Views
 {
     public partial class LicenseWindow : Window
     {

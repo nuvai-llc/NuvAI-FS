@@ -1,12 +1,12 @@
-﻿using NuvAI_FS.src.Common;
-using NuvAI_FS.src.Presentation.Setup;
-using NuvAI_FS.src.Presentation.Views.WizardPages;
-using NuvAI_FS.src.Services;
+﻿using NuvAI_FS.Src.Common;
+using NuvAI_FS.Src.Presentation.Setup;
+using NuvAI_FS.Src.Presentation.Views.WizardPages;
+using NuvAI_FS.Src.Services;
 using System;
 using System.Runtime.Versioning;
 using System.Windows;
 
-namespace NuvAI_FS.src.Presentation.Views
+namespace NuvAI_FS.Src.Presentation.Views
 {
     [SupportedOSPlatform("windows")]
     public partial class SetupWizardWindow : Window
@@ -210,6 +210,7 @@ namespace NuvAI_FS.src.Presentation.Views
             else if (_step == 2)
             {
                 BtnNext.IsEnabled = _step2Validated && _companySelected;
+                BtnNext.Opacity = BtnNext.IsEnabled ? 1.0 : 0.5;
             }
             else if (_step == 3)
             {

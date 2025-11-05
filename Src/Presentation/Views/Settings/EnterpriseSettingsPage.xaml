@@ -1,0 +1,108 @@
+﻿<Page x:Class="NuvAI_FS.Src.Presentation.Views.Settings.EnterpriseSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Enterprise">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- Título -->
+            <RowDefinition Height="8"/>
+            <RowDefinition Height="Auto"/>
+            <!-- Empresa -->
+            <RowDefinition Height="6"/>
+            <RowDefinition Height="Auto"/>
+            <!-- Ejercicio -->
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="Auto"/>
+            <!-- Ruta instalación -->
+            <RowDefinition Height="4"/>
+            <RowDefinition Height="Auto"/>
+            <!-- Ruta datos -->
+            <RowDefinition Height="4"/>
+            <RowDefinition Height="Auto"/>
+            <!-- Ruta ACCDB -->
+            <RowDefinition Height="16"/>
+            <RowDefinition Height="Auto"/>
+            <!-- Botonera -->
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Título -->
+        <TextBlock Grid.Row="0" Text="Empresa" FontSize="16" FontWeight="SemiBold"/>
+
+        <!-- Empresa -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="180"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Nombre de la empresa:"/>
+            <TextBlock x:Name="LblCompanyName" Grid.Column="1" VerticalAlignment="Center" Text="—"/>
+        </Grid>
+
+        <!-- Ejercicio (lectura + selector oculto) -->
+        <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="180"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Ejercicio:"/>
+
+            <!-- Lectura -->
+            <TextBlock x:Name="LblExercise" Grid.Column="1" VerticalAlignment="Center" Text="—"/>
+
+            <!-- Selector -->
+            <ComboBox x:Name="CmbExercise"
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Visibility="Collapsed"
+                MinWidth="140"
+                SelectionChanged="CmbExercise_SelectionChanged"/>
+
+            <Button x:Name="BtnChangeExercise"
+              Grid.Column="2"
+              Content="Cambiar ejercicio"
+              Padding="10,4"
+              Margin="8,0,0,0"
+              Click="BtnChangeExercise_Click"/>
+        </Grid>
+
+        <!-- Rutas -->
+        <Grid Grid.Row="6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="180"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Ruta instalación:"/>
+            <TextBlock x:Name="LblInstallPath" Grid.Column="1" VerticalAlignment="Center" Text="—" TextTrimming="CharacterEllipsis"/>
+        </Grid>
+
+        <Grid Grid.Row="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="180"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Ruta datos:"/>
+            <TextBlock x:Name="LblDataPath" Grid.Column="1" VerticalAlignment="Center" Text="—" TextTrimming="CharacterEllipsis"/>
+        </Grid>
+
+        <Grid Grid.Row="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="180"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Base de datos (ACCDB):"/>
+            <TextBlock x:Name="LblDatabasePath" Grid.Column="1" VerticalAlignment="Center" Text="—" TextTrimming="CharacterEllipsis"/>
+        </Grid>
+
+        <!-- Botonera -->
+        <StackPanel Grid.Row="12" Orientation="Horizontal" HorizontalAlignment="Left">
+            <Button x:Name="BtnChangeCompany"
+              Content="Cambiar de empresa"
+              Padding="10,4"
+              Click="BtnChangeCompany_Click"/>
+        </StackPanel>
+    </Grid>
+</Page>

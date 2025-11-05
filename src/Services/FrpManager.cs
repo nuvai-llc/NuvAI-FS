@@ -13,7 +13,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NuvAI_FS.src.Services
+namespace NuvAI_FS.Src.Services
 {
     /// <summary>
     /// Gestiona frpc (descarga/verifica binario, genera INI y lanza el proceso).

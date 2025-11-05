@@ -1,0 +1,81 @@
+﻿<Page x:Class="NuvAI_FS.Src.Presentation.Views.Settings.GeneralSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="General">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- Título -->
+            <RowDefinition Height="4"/>
+            <!-- Espacio -->
+            <RowDefinition Height="Auto"/>
+            <!-- Descripción -->
+            <RowDefinition Height="12"/>
+            <!-- Espacio -->
+            <RowDefinition Height="Auto"/>
+            <!-- Subtítulo Inicio -->
+            <RowDefinition Height="8"/>
+            <!-- Espacio -->
+            <RowDefinition Height="Auto"/>
+            <!-- Checkboxes Inicio -->
+            <RowDefinition Height="16"/>
+            <!-- Espacio -->
+            <RowDefinition Height="Auto"/>
+            <!-- Subtítulo Notificaciones -->
+            <RowDefinition Height="8"/>
+            <!-- Espacio -->
+            <RowDefinition Height="Auto"/>
+            <!-- Checkboxes Notificaciones -->
+            <RowDefinition Height="*"/>
+            <!-- Relleno -->
+        </Grid.RowDefinitions>
+
+        <!-- Título -->
+        <TextBlock Grid.Row="0"
+               Text="General"
+               FontSize="16"
+               FontWeight="SemiBold"/>
+
+        <!-- Descripción -->
+        <TextBlock Grid.Row="2"
+               Text="Ajustes básicos de la aplicación."
+               TextWrapping="Wrap"
+               Opacity="0.8"/>
+
+        <!-- Subtítulo: Inicio -->
+        <TextBlock Grid.Row="4"
+               Text="Inicio"
+               FontWeight="SemiBold"/>
+
+        <!-- Checkboxes: Inicio -->
+        <StackPanel Grid.Row="6" Orientation="Vertical">
+            <CheckBox x:Name="ChkRunOnStartup"
+                Content="Ejecutar al iniciar la aplicación"
+                IsChecked="True"/>
+            <CheckBox x:Name="ChkStartMinimized"
+                Content="Iniciar minimizado"
+                IsChecked="False"
+                Margin="0,5,0,0"/>
+            <CheckBox x:Name="ChkWindowsStartup"
+                Content="Iniciar con Windows"
+                IsChecked="True"
+                Margin="0,5,0,0"/>
+        </StackPanel>
+
+        <!-- Subtítulo: Notificaciones -->
+        <TextBlock Grid.Row="8"
+               Text="Notificaciones"
+               FontWeight="SemiBold"/>
+
+        <!-- Checkboxes: Notificaciones -->
+        <StackPanel Grid.Row="10" Orientation="Vertical">
+            <CheckBox x:Name="ChkDialogNotifications"
+                Content="Habilitar notificaciones de diálogos"
+                IsChecked="False"/>
+            <CheckBox x:Name="ChkDesktopNotifications"
+                Content="Habilitar notificaciones de escritorio"
+                IsChecked="True"
+                Margin="0,5,0,0"/>
+        </StackPanel>
+    </Grid>
+</Page>

@@ -1,4 +1,4 @@
-using NuvAI_FS.src.Common;
+using NuvAI_FS.Src.Common;
 using System.Reflection;
 using System.Resources;
 using System.Windows;

@@ -1,4 +1,4 @@
-﻿<Page x:Class="NuvAI_FS.src.Presentation.Views.WizardPages.SetupPathsPage"
+﻿<Page x:Class="NuvAI_FS.Src.Presentation.Views.WizardPages.SetupPathsPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Title="Rutas">
@@ -86,9 +86,9 @@
             </Grid>
 
             <TextBlock x:Name="LblValidation" Foreground="IndianRed" Visibility="Collapsed"
-           Margin="0,8,0,0" TextWrapping="Wrap"/>
+                       Margin="0,8,0,0" TextWrapping="Wrap"/>
             <TextBlock x:Name="LblOk" Foreground="ForestGreen" Visibility="Collapsed"
-           Margin="0,6,0,0" Text="Rutas validadas correctamente." />
+                       Margin="0,6,0,0" Text="Rutas validadas correctamente." />
 
             <!-- Selector de empresa (alineado con los demás) -->
             <StackPanel x:Name="CompanyBlock" Margin="0,16,0,0" Visibility="Collapsed">
@@ -101,29 +101,56 @@
 
                     <!-- ComboBox estirado en la primera columna -->
                     <ComboBox x:Name="CmbCompany"
-                          Grid.Column="0"
-                          HorizontalAlignment="Stretch"
-                          IsEnabled="False"
-                          DisplayMemberPath="Name"
-                          SelectedValuePath="Path"
-                          SelectionChanged="CmbCompany_SelectionChanged"/>
+                              Grid.Column="0"
+                              HorizontalAlignment="Stretch"
+                              IsEnabled="False"
+                              DisplayMemberPath="Name"
+                              SelectedValuePath="Path"
+                              SelectionChanged="CmbCompany_SelectionChanged"/>
 
-                     <!-- Columna 'dummy' para alinear con el botón de carpeta de los otros campos -->
+                    <!-- Columna 'dummy' para alinear con el botón de carpeta de los otros campos -->
                     <Button Grid.Column="1"
-                        Width="36" MinHeight="10" Padding="10" Margin="8,0,0,0"
-                        Visibility="Hidden"
-                        IsHitTestVisible="False"/>
-                        </Grid>
+                            Width="36" MinHeight="10" Padding="10" Margin="8,0,0,0"
+                            Visibility="Hidden"
+                            IsHitTestVisible="False"/>
+                </Grid>
 
-                     <TextBlock x:Name="LblCompanyHint"
-                       Foreground="Gray"
-                       Margin="0,6,0,0"
-                       Visibility="Collapsed"
-                       Text="No se han encontrado empresas en la carpeta FS. Revisa la ruta de instalación."/>
+                <TextBlock x:Name="LblCompanyHint"
+                           Foreground="Gray"
+                           Margin="0,6,0,0"
+                           Visibility="Collapsed"
+                           Text="No se han encontrado empresas en la carpeta FS. Revisa la ruta de instalación."/>
             </StackPanel>
 
+            <!-- NUEVO: Selector de ejercicio -->
+            <StackPanel x:Name="ExerciseBlock" Margin="0,8,0,0" Visibility="Collapsed">
+                <TextBlock Text="Ejercicio" Margin="0,0,0,6"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-            
+                    <ComboBox x:Name="CmbExercise"
+                              Grid.Column="0"
+                              HorizontalAlignment="Stretch"
+                              IsEnabled="False"
+                              SelectionChanged="CmbExercise_SelectionChanged"/>
+
+                    <!-- Botón 'dummy' para alinear -->
+                    <Button Grid.Column="1"
+                            Width="36" MinHeight="10" Padding="10" Margin="8,0,0,0"
+                            Visibility="Hidden"
+                            IsHitTestVisible="False"/>
+                </Grid>
+
+                <TextBlock x:Name="LblExerciseHint"
+                           Foreground="Gray"
+                           Margin="0,6,0,0"
+                           Visibility="Collapsed"
+                           Text="No se han encontrado ejercicios para la empresa seleccionada."/>
+            </StackPanel>
+
         </StackPanel>
 
         <!-- Acciones del paso -->
@@ -132,7 +159,5 @@
                 <Button x:Name="BtnValidate" Content="Validar" Width="100" Click="BtnValidate_Click"/>
             </StackPanel>
         </DockPanel>
-
-        
     </Grid>
 </Page>

@@ -1,19 +1,22 @@
 ﻿using NuvAI_FS.Infrastructure.Access;
-using NuvAI_FS.src.Presentation.Setup;
-using NuvAI_FS.src.Presentation.Views.Shared;
+using NuvAI_FS.Src.Presentation.Setup;
+using NuvAI_FS.Src.Presentation.Views.Shared;
+using NuvAI_FS.Src.Services;
 using Ookii.Dialogs.Wpf;
 using System;
 using System.Collections.Generic;
 using System.Data.OleDb;
 using System.IO;
+using System.Linq;
 using System.Runtime.Versioning;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace NuvAI_FS.src.Presentation.Views.WizardPages
+namespace NuvAI_FS.Src.Presentation.Views.WizardPages
 {
     [SupportedOSPlatform("windows")]
     public partial class SetupPathsPage : Page
@@ -48,6 +51,10 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
 
         // Estado de ocupación para evitar reentradas
         private bool _isBusy;
+
+        // Ejercicio elegido + código de empresa actual (prefijo sin año)
+        private int? _selectedExerciseYear;
+        private string? _currentCompanyCode;
 
         public SetupPathsPage(
             SetupState state,
@@ -88,8 +95,7 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
             }
         }
 
-        public SetupPathsPage()
-            : this(new SetupState(), _ => { }, () => { }, _ => { }) { }
+        public SetupPathsPage() : this(new SetupState(), _ => { }, () => { }, _ => { }) { }
 
         // ===== Helpers owner-safe =====
         private Window? TryGetOwner()
@@ -266,6 +272,8 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
                 SetFieldState(InstallControls, FieldState.Invalid);
                 LblOk.Visibility = Visibility.Collapsed;
                 CompanyBlock.Visibility = Visibility.Collapsed;
+                ExerciseBlock.Visibility = Visibility.Collapsed;
+                _selectedExerciseYear = null;
                 _companySelectedChanged(false);
             }
         }
@@ -284,6 +292,8 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
                 SetFieldState(DataControls, FieldState.Invalid);
                 LblOk.Visibility = Visibility.Collapsed;
                 CompanyBlock.Visibility = Visibility.Collapsed;
+                ExerciseBlock.Visibility = Visibility.Collapsed;
+                _selectedExerciseYear = null;
                 _companySelectedChanged(false);
             }
         }
@@ -299,6 +309,8 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
             SetFieldState(InstallControls, FieldState.Neutral);
             BtnValidate.IsEnabled = true;
             _state.PathsValidated = false;
+            _selectedExerciseYear = null;
+            ExerciseBlock.Visibility = Visibility.Collapsed;
             _companySelectedChanged(false);
             _validityChanged(false);
         }
@@ -313,6 +325,8 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
             SetFieldState(DataControls, FieldState.Neutral);
             BtnValidate.IsEnabled = true;
             _state.PathsValidated = false;
+            _selectedExerciseYear = null;
+            ExerciseBlock.Visibility = Visibility.Collapsed;
             _companySelectedChanged(false);
             _validityChanged(false);
         }
@@ -322,8 +336,7 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
 
         private void RestoreCompaniesFast(string dataRoot)
         {
-            // Si tenías cache previa, ahora solo la usamos si ya está ENRIQUECIDA (con nombres válidos);
-            // si no lo está, preferimos recargar con ACE para filtrar correctamente.
+            // Si tenías cache previa y ENRIQUECIDA, úsala
             if (_state.CompanyListEnriched && _state.CompanyList is { Count: > 0 } cached)
             {
                 CompanyBlock.Visibility = Visibility.Visible;
@@ -341,10 +354,16 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
                 else if (!string.IsNullOrWhiteSpace(_state.CompanyName))
                     SelectCompanyByName(_state.CompanyName);
 
+                // Si ya hay empresa seleccionada, intentamos ejercicios
+                if (CmbCompany.SelectedItem is CompanyItem ci)
+                {
+                    _ = LoadExercisesForCompanyAsync(_state.DataPath, ci.Path);
+                }
+
                 return;
             }
 
-            // Si no hay cache enriquecida, forzamos carga completa para filtrar bien.
+            // Sin cache enriquecida → recarga
             _ = LoadCompaniesAsync(dataRoot);
         }
 
@@ -373,12 +392,34 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
             {
                 if (hasAce)
                 {
-                    // Solo agregamos accdb con nombre válido
+                    // 1) Agrupar .accdb por código de empresa (prefijo) y extraer años
+                    var byCode = new Dictionary<string, List<(string path, int year)>>(StringComparer.OrdinalIgnoreCase);
+
                     foreach (var file in Directory.EnumerateFiles(fsDir, "*.accdb", SearchOption.TopDirectoryOnly))
                     {
-                        var friendly = TryGetCompanyNameFromAccdb(file);
-                        if (!string.IsNullOrWhiteSpace(friendly))
-                            validItems.Add(new CompanyItem(friendly!, file));
+                        var name = Path.GetFileNameWithoutExtension(file);
+                        var (code, year) = ExtractCompanyCodeAndYear(name);
+                        if (string.IsNullOrWhiteSpace(code) || !year.HasValue) continue;
+
+                        if (!byCode.TryGetValue(code, out var list))
+                        {
+                            list = new List<(string path, int year)>();
+                            byCode[code] = list;
+                        }
+                        list.Add((file, year.Value));
+                    }
+
+                    // 2) Un solo item por empresa: usamos el accdb del año más alto para leer el nombre "amigable"
+                    foreach (var kvp in byCode)
+                    {
+                        var code = kvp.Key;
+                        var list = kvp.Value;
+                        var best = list.OrderByDescending(x => x.year).First();
+
+                        var friendly = TryGetCompanyNameFromAccdb(best.path);
+                        var displayName = !string.IsNullOrWhiteSpace(friendly) ? friendly! : code;
+
+                        validItems.Add(new CompanyItem(displayName, best.path));
                     }
                 }
                 else
@@ -388,7 +429,7 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
                 }
             }
 
-            // Poblar UI con solo válidos
+            // Poblar UI
             CompanyBlock.Visibility = Visibility.Visible;
             CmbCompany.ItemsSource = validItems;
             CmbCompany.IsEnabled = validItems.Count > 0;
@@ -404,6 +445,12 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
             // Autoselección si hay una sola
             if (string.IsNullOrWhiteSpace(_state.DatabasePath) && validItems.Count == 1)
                 CmbCompany.SelectedIndex = 0;
+
+            // Si tenemos empresa seleccionada, cargar ejercicios
+            if (CmbCompany.SelectedItem is CompanyItem sel)
+            {
+                await LoadExercisesForCompanyAsync(dataRoot, sel.Path);
+            }
 
             if (!hasAce && showAceInfoIfMissing)
             {
@@ -486,21 +533,184 @@ namespace NuvAI_FS.src.Presentation.Views.WizardPages
             return null;
         }
 
-        // Cambio de selección de empresa → persistir en estado + notificar
-        private void CmbCompany_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        // Cambio de selección de empresa → persistir en estado + notificar + ejercicios
+        private async void CmbCompany_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (CmbCompany.SelectedItem is CompanyItem ci)
             {
                 _state.DatabasePath = ci.Path;
                 _state.CompanyName = ci.Name ?? string.Empty;
                 _companySelectedChanged(true);
+
+                // Fijar código de empresa actual a partir del filename
+                var fn = Path.GetFileNameWithoutExtension(ci.Path);
+                var (code, _) = ExtractCompanyCodeAndYear(fn);
+                _currentCompanyCode = string.IsNullOrWhiteSpace(code) ? null : code;
+
+                // Repoblar ejercicios para la empresa seleccionada
+                _selectedExerciseYear = null;
+                await LoadExercisesForCompanyAsync(_state.DataPath, ci.Path);
             }
             else
             {
                 _state.DatabasePath = string.Empty;
                 _state.CompanyName = string.Empty;
                 _companySelectedChanged(false);
+
+                // Reset ejercicios
+                ExerciseBlock.Visibility = Visibility.Collapsed;
+                CmbExercise.ItemsSource = null;
+                CmbExercise.IsEnabled = false;
+                LblExerciseHint.Visibility = Visibility.Collapsed;
+                _selectedExerciseYear = null;
+                _currentCompanyCode = null;
             }
+        }
+
+        // ==== EJERCICIOS ====
+
+        private async Task LoadExercisesForCompanyAsync(string dataRoot, string selectedCompanyAccdbPath)
+        {
+            try
+            {
+                ExerciseBlock.Visibility = Visibility.Visible;
+                CmbExercise.ItemsSource = null;
+                CmbExercise.IsEnabled = false;
+                LblExerciseHint.Visibility = Visibility.Collapsed;
+
+                var fsDir = System.IO.Path.Combine(dataRoot ?? string.Empty, "FS");
+                if (!Directory.Exists(fsDir) || !File.Exists(selectedCompanyAccdbPath))
+                {
+                    LblExerciseHint.Visibility = Visibility.Visible;
+                    return;
+                }
+
+                // 1) Obtener código de empresa desde el fichero seleccionado
+                var selectedFileName = Path.GetFileNameWithoutExtension(selectedCompanyAccdbPath);
+                var (companyCode, selectedYear) = ExtractCompanyCodeAndYear(selectedFileName);
+                if (string.IsNullOrEmpty(companyCode))
+                {
+                    LblExerciseHint.Visibility = Visibility.Visible;
+                    return;
+                }
+                _currentCompanyCode ??= companyCode; // por si no estaba aún
+
+                // 2) Reunir años disponibles para ese código
+                var years = await Task.Run(() =>
+                {
+                    var list = new List<int>();
+                    foreach (var file in Directory.EnumerateFiles(fsDir, "*.accdb", SearchOption.TopDirectoryOnly))
+                    {
+                        var name = Path.GetFileNameWithoutExtension(file);
+                        var (code, year) = ExtractCompanyCodeAndYear(name);
+                        if (string.Equals(code, companyCode, StringComparison.OrdinalIgnoreCase) && year.HasValue)
+                        {
+                            if (!list.Contains(year.Value))
+                                list.Add(year.Value);
+                        }
+                    }
+                    list.Sort();
+                    return list;
+                });
+
+                if (years.Count == 0)
+                {
+                    LblExerciseHint.Visibility = Visibility.Visible;
+                    return;
+                }
+
+                // 3) Poblar combo
+                CmbExercise.ItemsSource = years;
+                CmbExercise.IsEnabled = true;
+
+                // 4) Selección (año del fichero seleccionado o el mayor) + persistencia inmediata
+                int yearToSelect = selectedYear ?? years.Max();
+                if (!years.Contains(yearToSelect))
+                    yearToSelect = years.Max();
+
+                CmbExercise.SelectedItem = yearToSelect;
+                _selectedExerciseYear = yearToSelect;
+
+                // Guardar path y ejercicio en Registro ya mismo
+                SaveSelectedExercisePath(yearToSelect);
+            }
+            catch
+            {
+                // Fallback visual
+                LblExerciseHint.Visibility = Visibility.Visible;
+                CmbExercise.ItemsSource = null;
+                CmbExercise.IsEnabled = false;
+                _selectedExerciseYear = null;
+            }
+        }
+
+        /// <summary>
+        /// A partir de un nombre de archivo (sin extensión), intenta extraer:
+        /// - companyCode: prefijo antes del ÚLTIMO bloque de 4 dígitos.
+        /// - year: ese último bloque de 4 dígitos si es un año razonable (2000..2100).
+        /// Ej.: "0012025" -> ("001", 2025) | "ACME2024" -> ("ACME", 2024)
+        /// </summary>
+        private static (string companyCode, int? year) ExtractCompanyCodeAndYear(string fileNameNoExt)
+        {
+            if (string.IsNullOrWhiteSpace(fileNameNoExt))
+                return (string.Empty, null);
+
+            var m = Regex.Match(fileNameNoExt, @"^(?<code>.+?)(?<year>\d{4})$");
+            if (!m.Success)
+                return (string.Empty, null);
+
+            var code = (m.Groups["code"].Value ?? string.Empty).Trim();
+            var yearStr = m.Groups["year"].Value;
+
+            if (!int.TryParse(yearStr, out var year))
+                return (string.Empty, null);
+
+            if (year < 2000 || year > 2100)
+                return (string.Empty, null);
+
+            return (code, year);
+        }
+
+        // Al cambiar el ejercicio manualmente, persistimos ruta+ejercicio
+        private void CmbExercise_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (CmbExercise.SelectedItem is int y)
+            {
+                _selectedExerciseYear = y;
+                SaveSelectedExercisePath(y);
+            }
+            else
+            {
+                _selectedExerciseYear = null;
+            }
+        }
+
+        // ======= Helpers de ejercicio/registro =======
+
+        private static string BuildAccdbPath(string dataRoot, string companyCode, int year)
+        {
+            var fsDir = Path.Combine(dataRoot ?? string.Empty, "FS");
+            return Path.Combine(fsDir, $"{companyCode}{year}.accdb");
+        }
+
+        private void SaveSelectedExercisePath(int year)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(_state.DataPath) || string.IsNullOrWhiteSpace(_currentCompanyCode))
+                    return;
+
+                var target = BuildAccdbPath(_state.DataPath, _currentCompanyCode!, year);
+                if (!File.Exists(target)) return;
+
+                // Actualiza el estado en memoria
+                _state.DatabasePath = target;
+
+                // Persistencia en Registro
+                RegistryService.SetAppKey("DatabasePath", target);
+                RegistryService.SetAppKey("ExerciseYear", year.ToString());
+            }
+            catch { /* noop */ }
         }
 
         // ==== Folder picker (Windows) ====

@@ -2,12 +2,11 @@
 #nullable enable
 
 using Microsoft.Win32;
-using NuvAI_FS.Infrastructure.Services;
-using NuvAI_FS.src.Common;
-using NuvAI_FS.src.Presentation.Setup;
-using NuvAI_FS.src.Presentation.Views;
-using NuvAI_FS.src.Presentation.Views.Shared; // Dialogs.RunWithLoadingAsync
-using NuvAI_FS.src.Services;
+using NuvAI_FS.Src.Services;
+using NuvAI_FS.Src.Common;
+using NuvAI_FS.Src.Presentation.Setup;
+using NuvAI_FS.Src.Presentation.Views;
+using NuvAI_FS.Src.Presentation.Views.Shared;
 using System;
 using System.Linq;
 using System.Runtime.Versioning;
@@ -159,7 +158,7 @@ namespace NuvAI_FS
         {
             try
             {
-                var dlg = new SetupWizardWindow { Owner = this };
+                var dlg = new SettingsWindow { Owner = this };
                 _ = dlg.ShowDialog();
             }
             catch (Exception ex)
