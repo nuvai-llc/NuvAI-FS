@@ -513,9 +513,9 @@ namespace NuvAI_FS.Src.Presentation.Views.WizardPages
                         con.Open();
 
                         using var cmd = new OleDbCommand(
-                            "SELECT TOP 1 [CTT1TPV] " +
-                            "FROM [T_TPV] " +
-                            "WHERE [CTT1TPV] IS NOT NULL AND Trim([CTT1TPV]) <> ''",
+                            "SELECT TOP 1 [DENEMP] " +
+                            "FROM [F_EMP] " +
+                            "WHERE [DENEMP] IS NOT NULL AND Trim([DENEMP]) <> ''",
                             con);
 
                         var v = cmd.ExecuteScalar();

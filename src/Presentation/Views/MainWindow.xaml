@@ -12,7 +12,7 @@
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="Auto"
         FontSize="13"
-        Loaded="Window_Loaded">
+        Loaded="Window_Loaded" WindowStyle="ThreeDBorderWindow">
 
     <!-- Atajos -->
     <Window.InputBindings>

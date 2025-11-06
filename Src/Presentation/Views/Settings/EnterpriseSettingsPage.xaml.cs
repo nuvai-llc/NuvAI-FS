@@ -18,9 +18,8 @@ namespace NuvAI_FS.Src.Presentation.Views.Settings
         private string? _currentExerciseYear;
         private string? _currentDatabasePath;
         private string? _dataPathFs;
-        private string? _enterpriseId; // NUEVO: leído de registro
 
-        // Para impedir que SelectedItem programático dispare "dirty"
+        private string? _companyId; // CompanyId efectivo (registro o derivado del DatabasePath)
         private bool _suspendSelectionChanged;
 
         // Cambios pendientes (no se persisten hasta ApplyChanges)
@@ -40,7 +39,11 @@ namespace NuvAI_FS.Src.Presentation.Views.Settings
             var dataPath = RegistryService.GetAppKeyString("FactusolDataPath");
             var databasePath = RegistryService.GetAppKeyString("DatabasePath");
             var exerciseYear = RegistryService.GetAppKeyString("ExerciseYear");
-            _enterpriseId = RegistryService.GetAppKeyString("EnterpriseId"); // NUEVO
+
+            // CompanyId: primero del registro, si no existe, derivado
+            _companyId = RegistryService.GetAppKeyString("CompanyId");
+            if (string.IsNullOrWhiteSpace(_companyId))
+                _companyId = DeriveCompanyIdFromDatabasePath(databasePath);
 
             LblCompanyName.Text = OrDash(companyName);
             LblInstallPath.Text = OrDash(installPath);
@@ -50,9 +53,10 @@ namespace NuvAI_FS.Src.Presentation.Views.Settings
 
             _currentExerciseYear = exerciseYear;
             _currentDatabasePath = databasePath;
+
             _dataPathFs = string.IsNullOrWhiteSpace(dataPath) ? null : Path.Combine(dataPath, "FS");
 
-            // Estado UI lectura
+            // Modo lectura por defecto
             LblExercise.Visibility = Visibility.Visible;
             CmbExercise.Visibility = Visibility.Collapsed;
             BtnChangeExercise.Visibility = Visibility.Visible;
@@ -66,6 +70,21 @@ namespace NuvAI_FS.Src.Presentation.Views.Settings
 
         private static string OrDash(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s;
 
+        /// <summary>
+        /// Deriva CompanyId a partir del DatabasePath actual (NombreArchivo = CompanyId + YYYY + ".accdb").
+        /// Ej: "XD12025.accdb" -> "XD1"
+        /// </summary>
+        private static string? DeriveCompanyIdFromDatabasePath(string? dbPath)
+        {
+            if (string.IsNullOrWhiteSpace(dbPath)) return null;
+            var file = Path.GetFileNameWithoutExtension(dbPath);
+            if (string.IsNullOrWhiteSpace(file) || file.Length <= 4) return null;
+
+            var last4 = file.Substring(file.Length - 4);
+            if (!int.TryParse(last4, out _)) return null; // últimos 4 deben ser numéricos (año)
+            return file.Substring(0, file.Length - 4);
+        }
+
         private void BtnChangeExercise_Click(object sender, RoutedEventArgs e)
         {
             var owner = Window.GetWindow(this);
@@ -77,55 +96,51 @@ namespace NuvAI_FS.Src.Presentation.Views.Settings
 
             if (result != MessageBoxResult.OK) return;
 
-            // Solo cambiar a modo selector (no guardar nada)
+            // Solo habilitar selector (no persistir)
             LblExercise.Visibility = Visibility.Collapsed;
             CmbExercise.Visibility = Visibility.Visible;
             BtnChangeExercise.Visibility = Visibility.Collapsed;
 
-            PopulateExerciseComboFilteredByEnterprise();
+            PopulateExerciseComboForCompany();
 
-            // Selección programática del año actual SIN disparar cambios
             _suspendSelectionChanged = true;
             try
             {
                 if (!string.IsNullOrWhiteSpace(_currentExerciseYear))
                     CmbExercise.SelectedItem = _currentExerciseYear;
             }
-            finally
-            {
-                _suspendSelectionChanged = false;
-            }
+            finally { _suspendSelectionChanged = false; }
         }
 
         /// <summary>
-        /// Llena el combo SOLO con años que existan como ACCDB con el mismo EnterpriseId:
-        /// &lt;EnterpriseId&gt;&lt;Año&gt;.accdb
-        /// Si no hay EnterpriseId, hace fallback a cualquier *YYYY.accdb (pero no escribe nada aún).
+        /// Llena el combo con los ejercicios que EXISTEN en FS y pertenecen a ESTE CompanyId.
+        /// Busca archivos: {CompanyId}{YYYY}.accdb
         /// </summary>
-        private void PopulateExerciseComboFilteredByEnterprise()
+        private void PopulateExerciseComboForCompany()
         {
             CmbExercise.Items.Clear();
 
             if (string.IsNullOrWhiteSpace(_dataPathFs) || !Directory.Exists(_dataPathFs))
                 return;
 
-            // Si tenemos EnterpriseId, buscamos exactamente ^<EnterpriseId>(?<year>\d{4})\.accdb$
-            Regex regex = !string.IsNullOrWhiteSpace(_enterpriseId)
-                ? new Regex(@"^" + Regex.Escape(_enterpriseId) + @"(?<year>\d{4})\.accdb$", RegexOptions.IgnoreCase | RegexOptions.Compiled)
-                : new Regex(@"^(?<code>\d+)(?<year>\d{4})\.accdb$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            var companyId = _companyId;
+            if (string.IsNullOrWhiteSpace(companyId))
+                return; // sin companyId no podemos filtrar correctamente
 
-            var accdbs = SafeEnumerateFiles(_dataPathFs, "*.accdb");
+            var accdbs = SafeEnumerateFiles(_dataPathFs, $"{companyId}*.accdb");
+
             var years = new HashSet<string>(StringComparer.Ordinal);
-
             foreach (var file in accdbs)
             {
-                var name = Path.GetFileName(file);
-                var m = regex.Match(name);
-                if (!m.Success) continue;
-                years.Add(m.Groups["year"].Value);
+                var nameNoExt = Path.GetFileNameWithoutExtension(file);
+                if (nameNoExt.Length <= companyId.Length + 3) continue; // al menos companyId + 4 dígitos
+                var maybeYear = nameNoExt.Substring(companyId.Length);
+
+                if (maybeYear.Length == 4 && int.TryParse(maybeYear, out _)) // YYYY
+                    years.Add(maybeYear);
             }
 
-            foreach (var y in years.OrderBy(s => s))
+            foreach (var y in years.OrderBy(y => y))
                 CmbExercise.Items.Add(y);
         }
 
@@ -141,35 +156,27 @@ namespace NuvAI_FS.Src.Presentation.Views.Settings
             if (CmbExercise.Visibility != Visibility.Visible) return;
             if (CmbExercise.SelectedItem is not string year || string.IsNullOrWhiteSpace(year)) return;
 
-            // Resolver ACCDB exacto: <EnterpriseId><year>.accdb si hay EnterpriseId; si no, fallback *<year>.accdb
-            var newDb = ResolveAccdbForYear(_dataPathFs, year, _enterpriseId);
-
+            var companyId = _companyId;
             PendingExerciseYear = year;
+
+            // Construimos la ruta candidata exacta: {FS}\{CompanyId}{YYYY}.accdb
+            string? newDb = null;
+            if (!string.IsNullOrWhiteSpace(_dataPathFs) && !string.IsNullOrWhiteSpace(companyId))
+            {
+                var candidate = Path.Combine(_dataPathFs, $"{companyId}{year}.accdb");
+                if (File.Exists(candidate))
+                    newDb = candidate;
+            }
+
             PendingDatabasePath = newDb;
 
-            // Vista previa en labels (sin guardar)
+            // Vista previa (sin persistir)
             LblExercise.Text = year;
             LblDatabasePath.Text = OrDash(newDb);
 
-            // Marcar sucio si realmente cambia algo
+            // Marcar sucio si cambia
             IsDirty = (PendingExerciseYear != _currentExerciseYear) ||
                       (!string.Equals(PendingDatabasePath, _currentDatabasePath, StringComparison.OrdinalIgnoreCase));
-        }
-
-        private static string? ResolveAccdbForYear(string? fsDir, string year, string? enterpriseId)
-        {
-            if (string.IsNullOrWhiteSpace(fsDir) || !Directory.Exists(fsDir)) return null;
-
-            if (!string.IsNullOrWhiteSpace(enterpriseId))
-            {
-                var exact = Path.Combine(fsDir, $"{enterpriseId}{year}.accdb");
-                if (File.Exists(exact)) return exact;
-            }
-
-            // Fallback prudente si no conocemos EnterpriseId
-            return Directory.EnumerateFiles(fsDir, $"*{year}.accdb", SearchOption.TopDirectoryOnly)
-                            .OrderBy(p => p)
-                            .FirstOrDefault();
         }
 
         private void BtnChangeCompany_Click(object sender, RoutedEventArgs e)
@@ -201,20 +208,20 @@ namespace NuvAI_FS.Src.Presentation.Views.Settings
         {
             if (!IsDirty) return;
 
-            // Debe existir ACCDB para el año elegido con el EnterpriseId actual
+            // Validación: debe existir el ACCDB construido {CompanyId}{YYYY}.accdb
             if (PendingExerciseYear != null && string.IsNullOrWhiteSpace(PendingDatabasePath))
             {
                 var owner = Window.GetWindow(this);
                 MessageBox.Show(owner,
                     "No se encontró la base de datos para el ejercicio seleccionado.\n" +
-                    "Asegúrate de que existe un archivo <EnterpriseId><Año>.accdb en la carpeta FS.",
+                    "Asegúrate de que existe un archivo <CompanyId><Año>.accdb en la carpeta FS.",
                     "No se puede guardar",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 throw new InvalidOperationException("ACCDB inexistente para el ejercicio seleccionado.");
             }
 
-            // Persistencia (solo lo que cambió)
+            // Persistencia (solo si cambió)
             if (!string.IsNullOrWhiteSpace(PendingExerciseYear) &&
                 !string.Equals(PendingExerciseYear, _currentExerciseYear, StringComparison.Ordinal))
             {

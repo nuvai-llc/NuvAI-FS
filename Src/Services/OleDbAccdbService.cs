@@ -93,5 +93,33 @@ namespace NuvAI_FS.Src.Services
                 }, ct).ConfigureAwait(false);
             }
         }
+
+        // === NUEVO: ejecuta INSERT/UPDATE/DELETE y devuelve filas afectadas ===
+        public async Task<int> ExecuteNonQueryAsync(string sql, CancellationToken ct)
+        {
+            var cs16 = $"Provider={ProviderPrefered};Data Source={_accdbPath};Persist Security Info=False;";
+
+            try
+            {
+                return await Task.Run(() =>
+                {
+                    using var cn = new OleDbConnection(cs16);
+                    cn.Open();
+                    using var cmd = new OleDbCommand(sql, cn) { CommandType = CommandType.Text };
+                    return cmd.ExecuteNonQuery();
+                }, ct).ConfigureAwait(false);
+            }
+            catch (OleDbException) // fallback 12.0
+            {
+                var cs12 = $"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={_accdbPath};Persist Security Info=False;";
+                return await Task.Run(() =>
+                {
+                    using var cn = new OleDbConnection(cs12);
+                    cn.Open();
+                    using var cmd = new OleDbCommand(sql, cn) { CommandType = CommandType.Text };
+                    return cmd.ExecuteNonQuery();
+                }, ct).ConfigureAwait(false);
+            }
+        }
     }
 }

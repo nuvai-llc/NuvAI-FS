@@ -11,7 +11,7 @@ namespace NuvAI_FS.Src.Presentation.Views
     {
         private bool _navReady = false;
 
-        // Instancias únicas de las páginas (para conservar su estado y suscripción a eventos)
+        // Instancias únicas de las páginas (conservan estado)
         private readonly GeneralSettingsPage _generalPage = new();
         private readonly EnterpriseSettingsPage _enterprisePage = new();
 
@@ -22,32 +22,44 @@ namespace NuvAI_FS.Src.Presentation.Views
             this.ContentRendered += (_, __) =>
             {
                 _navReady = true;
-                // Suscribir a cambios
                 HookDirtyEvents();
-                // Navegación inicial
                 Navigate("General");
             };
         }
 
+        // ===== Suscripción a cambios de todas las páginas =====
         private void HookDirtyEvents()
         {
             foreach (var p in GetAllPages())
-                p.DirtyChanged += (_, __) => UpdateSaveButton();
-            UpdateSaveButton();
+                p.DirtyChanged += (_, __) => UpdateActionsUI();
+            UpdateActionsUI();
         }
 
         private ISettingsPage[] GetAllPages()
             => new ISettingsPage[] { _generalPage, _enterprisePage };
 
-        private void UpdateSaveButton()
+        // ===== UI acción inferior (Guardar / Cancelar / Salir) =====
+        private void UpdateActionsUI()
         {
+            bool anyDirty = GetAllPages().Any(p => p.IsDirty);
+
             try
             {
-                BtnSave.IsEnabled = GetAllPages().Any(p => p.IsDirty);
+                // Guardar
+                if (BtnSave != null)
+                    BtnSave.IsEnabled = anyDirty;
+
+                // Alternar Salir <-> Cancelar
+                if (BtnCancel != null)
+                    BtnCancel.Visibility = anyDirty ? Visibility.Visible : Visibility.Collapsed;
+
+                if (BtnExit != null)
+                    BtnExit.Visibility = anyDirty ? Visibility.Collapsed : Visibility.Visible;
             }
-            catch { /* noop */ }
+            catch { /* noop visual */ }
         }
 
+        // ===== Navegación =====
         private void NavTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
             if (!_navReady) return;
@@ -67,10 +79,21 @@ namespace NuvAI_FS.Src.Presentation.Views
             SettingsFrame.Navigate(page);
         }
 
+        // ===== Botones =====
         private void BtnExit_Click(object sender, RoutedEventArgs e)
         {
-            try { this.DialogResult = true; } catch { }
+            try { this.DialogResult = true; } catch { /* noop */ }
             Close();
+        }
+
+        private void BtnCancel_Click(object sender, RoutedEventArgs e)
+        {
+            // Descartar cambios en todas las páginas y restaurar su UI
+            foreach (var p in GetAllPages())
+                p.ResetDirty();
+
+            // Actualizar barra de acciones
+            UpdateActionsUI();
         }
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
@@ -81,11 +104,12 @@ namespace NuvAI_FS.Src.Presentation.Views
                 foreach (var p in GetAllPages().Where(p => p.IsDirty))
                     p.ApplyChanges();
 
-                // Si llegó aquí, todo OK → limpiamos estado y deshabilitamos Guardar
+                // Limpiar estado de todas
                 foreach (var p in GetAllPages())
                     p.ResetDirty();
 
-                UpdateSaveButton();
+                UpdateActionsUI();
+
                 MessageBox.Show(this, "Configuración guardada.", "Settings",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }

@@ -29,6 +29,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Set VERSION from tag (strip leading 'v'/'V')
         shell: pwsh
@@ -107,20 +110,35 @@ jobs:
       - name: Generate latest.json (fs/latest.json)
         shell: pwsh
         run: |
-          $ver = "$env:VERSION"
-          $base = "https://pub-ad842211e29b462e97dfbfd5bb04312c.r2.dev/fs/releases/$ver"
-          $now  = (Get-Date).ToUniversalTime().ToString("s") + "Z"
-          $obj = [ordered]@{
-            version     = $ver
-            baseUrl     = $base
-            publishedAt = $now
-            notes       = "Auto-release $ver"
-          }
-          $json = ($obj | ConvertTo-Json -Depth 5)
-          $latestPath = Join-Path $env:VPK_OUT "latest.json"
-          $json | Set-Content $latestPath -Encoding UTF8
-          Write-Host "latest.json:"
-          Get-Content $latestPath
+            git fetch --tags --force
+
+            $ver  = "$env:VERSION"
+            $tag  = "${{ github.ref_name }}"
+            # Lee el cuerpo del tag anotado (si es lightweight, quedará vacío)
+            $tagMsg = (git for-each-ref "refs/tags/$tag" --format="%(contents)") -join "`n"
+            if ([string]::IsNullOrWhiteSpace($tagMsg)) {
+                # Fallback: usa el título del tag o un texto por defecto
+                $tagMsg = "Auto-release $ver"
+            }
+            $tagMsg = $tagMsg.Trim()
+
+            $base = "https://pub-ad842211e29b462e97dfbfd5bb04312c.r2.dev/fs/releases/$ver"
+            $now  = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+
+            $obj = [ordered]@{
+                version     = $ver
+                baseUrl     = $base
+                publishedAt = $now
+                notes       = $tagMsg
+            }
+
+            $json = ($obj | ConvertTo-Json -Depth 5)
+            $latestPath = Join-Path $env:VPK_OUT "latest.json"
+            # En PS7, utf8NoBOM evita BOM
+            $json | Set-Content $latestPath -Encoding utf8NoBOM
+
+            Write-Host "latest.json:"
+            Get-Content $latestPath
 
       # No uses configure-aws-credentials (STS) con R2. Exporta claves estáticas sin token.
       - name: Configure AWS env for R2 (no STS)

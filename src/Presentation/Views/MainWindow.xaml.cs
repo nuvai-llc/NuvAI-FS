@@ -1,12 +1,10 @@
-﻿// MainWindow.xaml.cs
-#nullable enable
-
+﻿#nullable enable
 using Microsoft.Win32;
-using NuvAI_FS.Src.Services;
 using NuvAI_FS.Src.Common;
-using NuvAI_FS.Src.Presentation.Setup;
+using NuvAI_FS.Src.Infrastructure.Notifications;
 using NuvAI_FS.Src.Presentation.Views;
 using NuvAI_FS.Src.Presentation.Views.Shared;
+using NuvAI_FS.Src.Services;
 using System;
 using System.Linq;
 using System.Runtime.Versioning;
@@ -18,7 +16,7 @@ using System.Windows.Media;
 namespace NuvAI_FS
 {
     [SupportedOSPlatform("windows")]
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, NuvAI_FS.Src.Infrastructure.Tray.ITrayAware
     {
         // ===== Autoupdate =====
         private const string LatestUrl = "https://pub-ad842211e29b462e97dfbfd5bb04312c.r2.dev/fs/latest.json";
@@ -34,29 +32,40 @@ namespace NuvAI_FS
         private ApiService? _apiService;
         private FrpManager? _frp;
 
+        // Cierre real (lo pedirá TrayService → ITrayAware)
+        private bool _realExit = false;
+
         public MainWindow()
         {
             InitializeComponent();
             this.Title = $"{AppInfo.ProductName} v{AppInfo.InformationalVersion}";
+
+            // (Opcional) arranque con Windows
+            EnsureStartupEntry();
+
+            // Ocultar al minimizar
+            this.StateChanged += (_, __) =>
+            {
+                if (WindowState == WindowState.Minimized)
+                {
+                    try
+                    {
+                        ShowInTaskbar = false;
+                        Hide();
+
+                        // Una sola vez, un aviso sutil (opcional)
+                        NotificationService.ShowInfo("NuvAI FS", "Sigue ejecutándose en segundo plano.");
+                    }
+                    catch { /* noop */ }
+                }
+            };
         }
 
-        private static SolidColorBrush Make(string hex)
+        // Implementación ITrayAware: el tray llama a esto para salir de verdad
+        public void RequestRealExit()
         {
-            try
-            {
-                var obj = ColorConverter.ConvertFromString(hex);
-                if (obj is Color color)
-                {
-                    var brush = new SolidColorBrush(color);
-                    if (brush.CanFreeze) brush.Freeze();
-                    return brush;
-                }
-            }
-            catch { /* noop */ }
-
-            var fallback = new SolidColorBrush(Colors.Gray);
-            if (fallback.CanFreeze) fallback.Freeze();
-            return fallback;
+            _realExit = true;
+            try { Close(); } catch { /* noop */ }
         }
 
         // ===== Estados de servicio =====
@@ -81,6 +90,24 @@ namespace NuvAI_FS
             }
         }
 
+        private static SolidColorBrush Make(string hex)
+        {
+            try
+            {
+                var obj = ColorConverter.ConvertFromString(hex);
+                if (obj is Color color)
+                {
+                    var brush = new SolidColorBrush(color);
+                    if (brush.CanFreeze) brush.Freeze();
+                    return brush;
+                }
+            }
+            catch { }
+            var fallback = new SolidColorBrush(Colors.Gray);
+            if (fallback.CanFreeze) fallback.Freeze();
+            return fallback;
+        }
+
         // ===== URL a partir del clientId (versión simple) =====
         public void SetClientUrl(string clientId)
         {
@@ -99,7 +126,7 @@ namespace NuvAI_FS
             TxtUrl.Text = $"https://{safe}.clients.nuvai.es";
         }
 
-        // ===== Copiar URL con un click =====
+        // Copiar URL
         private void TxtUrl_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (!TxtUrl.IsKeyboardFocused)
@@ -109,7 +136,6 @@ namespace NuvAI_FS
                 TxtUrl.SelectAll();
             }
         }
-
         private void TxtUrl_GotFocus(object sender, RoutedEventArgs e) => TxtUrl.SelectAll();
 
         private async void TxtUrl_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -118,24 +144,18 @@ namespace NuvAI_FS
             {
                 if (!string.IsNullOrWhiteSpace(TxtUrl.Text))
                 {
-                    // Copiar URL
                     Clipboard.SetText(TxtUrl.Text);
-
-                    // Quitar la selección del TextBox (deja el cursor al final)
                     TxtUrl.SelectionLength = 0;
                     TxtUrl.SelectionStart = TxtUrl.Text.Length;
 
-                    // Guardar estado previo del InfoText
                     var prevText = InfoText.Text;
                     var prevBrush = InfoText.Foreground;
 
-                    // Mostrar mensaje en verde
                     InfoText.Text = "URL copiada al portapapeles";
                     InfoText.Foreground = LedGreen;
 
                     await Task.Delay(2000);
 
-                    // Restaurar solo si nadie más cambió el texto/estilo mientras tanto
                     if (InfoText.Text == "URL copiada al portapapeles")
                     {
                         InfoText.Text = prevText;
@@ -150,8 +170,7 @@ namespace NuvAI_FS
             }
         }
 
-
-        // ===== Menú / Comandos =====
+        // Menú / comandos
         private void Always_CanExecute(object sender, CanExecuteRoutedEventArgs e) => e.CanExecute = true;
 
         private void OpenSettings_Executed(object sender, ExecutedRoutedEventArgs e)
@@ -176,7 +195,6 @@ namespace NuvAI_FS
                 "Ayuda", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        // (legacy) por si lo llamas desde algún lado
         private async void UpdateBtn_Click(object sender, RoutedEventArgs e) => await RunUpdateFlowAsync();
 
         // ===== Orquestación de actualización =====
@@ -184,7 +202,6 @@ namespace NuvAI_FS
         {
             if (_isUpdating) return;
             _isUpdating = true;
-
             try
             {
                 UpdateService.CheckResult? check = null;
@@ -247,9 +264,7 @@ Notas:     {notas}
                         });
 
                         if (apply is null) return;
-
-                        if (apply.Outcome == UpdateService.ApplyOutcome.StartedRestart)
-                            return;
+                        if (apply.Outcome == UpdateService.ApplyOutcome.StartedRestart) return;
 
                         if (apply.Outcome == UpdateService.ApplyOutcome.NoUpdatesFound)
                         {
@@ -278,11 +293,11 @@ Notas:     {notas}
         {
             SetServiceState(ServiceState.Starting, "Iniciando…");
 
-            // 1) Resolver URL (BaseUrl ó compuesta por clientId) y reflejar
+            // 1) Resolver URL
             try
             {
                 string? baseUrl = null;
-                try { baseUrl = RegistryService.GetAppKeyString("BaseUrl"); } catch { /* noop */ }
+                try { baseUrl = RegistryService.GetAppKeyString("BaseUrl"); } catch { }
 
                 if (!string.IsNullOrWhiteSpace(baseUrl))
                 {
@@ -292,7 +307,7 @@ Notas:     {notas}
                 {
                     var clientId = ResolveClientId() ?? "cliente";
                     var composedUrl = BuildUrlFromClientId(clientId);
-                    try { RegistryService.SetAppKey("BaseUrl", composedUrl); } catch { /* noop */ }
+                    try { RegistryService.SetAppKey("BaseUrl", composedUrl); } catch { }
                     SetClientUrl(clientId: clientId, baseUrl: null);
                 }
             }
@@ -301,14 +316,13 @@ Notas:     {notas}
                 SetClientUrl(clientId: null, baseUrl: null);
             }
 
-            // 2) Iniciar API local y sondear /health
+            // 2) Iniciar API local y frp...
             try
             {
                 SetServiceState(ServiceState.Starting, "Inicializando API…");
 
                 _apiService = new ApiService(port: 5137);
 
-                // (test visual) pequeña pausa
                 await Task.Delay(3000);
 
                 await _apiService.StartAsync();
@@ -320,7 +334,6 @@ Notas:     {notas}
                     return;
                 }
 
-                // 3) Levantar túnel FRP usando defaults del FrpManager
                 SetServiceState(ServiceState.Starting, "API OK. Levantando túnel…");
 
                 try
@@ -328,32 +341,29 @@ Notas:     {notas}
                     var clientId = ResolveClientId() ?? "cliente";
                     var localPort = _apiService.Port;
 
-                    _frp = new FrpManager(
-                        clientId: clientId,
-                        localPort: localPort
-                    );
+                    _frp = new FrpManager(clientId: clientId, localPort: localPort);
 
                     await _frp.StartAsync();
 
-                    // Prioriza la URL pública del túnel en la UI
                     TxtUrl.Text = _frp.PublicUrl;
 
                     SetServiceState(ServiceState.Running, "Servicio activo (túnel OK)");
+                    NotificationService.ShowInfo("Servicio activo", "El túnel está operativo.");
                 }
                 catch (Exception exTunnel)
                 {
                     SetServiceState(ServiceState.Error, "Túnel frp no pudo iniciarse");
-                    try { InfoText.Text = $"Error túnel: {exTunnel.Message}"; } catch { /* noop */ }
+                    try { InfoText.Text = $"Error túnel: {exTunnel.Message}"; } catch { }
                 }
             }
             catch (Exception ex)
             {
                 SetServiceState(ServiceState.Error, "API no pudo iniciarse");
-                try { InfoText.Text = $"Error API: {ex.Message}"; } catch { /* noop */ }
+                try { InfoText.Text = $"Error API: {ex.Message}"; } catch { }
             }
         }
 
-        // ===== Resolución de ClientId desde registro =====
+        // Resolución de ClientId
         private static string? ResolveClientId()
         {
             try
@@ -362,11 +372,10 @@ Notas:     {notas}
                 if (!string.IsNullOrWhiteSpace(fromReg))
                     return fromReg.Trim();
             }
-            catch { /* noop */ }
+            catch { }
             return null;
         }
 
-        // ===== Helpers =====
         private static string SanitizeClientId(string clientId)
         {
             var safe = new string((clientId ?? "")
@@ -374,14 +383,12 @@ Notas:     {notas}
                 .ToLowerInvariant()
                 .Where(c => char.IsLetterOrDigit(c) || c == '-')
                 .ToArray());
-
             return string.IsNullOrWhiteSpace(safe) ? "cliente" : safe;
         }
 
         private static string BuildUrlFromClientId(string clientId)
             => $"https://{SanitizeClientId(clientId)}.clients.nuvai.es";
 
-        // Sobrecarga que acepta clientId o baseUrl explícita
         public void SetClientUrl(string? clientId, string? baseUrl)
         {
             if (!string.IsNullOrWhiteSpace(baseUrl))
@@ -405,12 +412,48 @@ Notas:     {notas}
             TxtUrl.Text = "https://*.clients.nuvai.es";
         }
 
-        // ===== Cierre limpio =====
+        // Cierre: si no es “real”, oculta; si es real, para servicios y cierra
         protected override async void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
+            if (!_realExit)
+            {
+                e.Cancel = true;
+                try
+                {
+                    ShowInTaskbar = false;
+                    Hide();
+                }
+                catch { }
+                return;
+            }
+
             try { if (_frp is not null) await _frp.StopAsync(); } catch { }
             try { if (_apiService is not null) await _apiService.StopAsync(); } catch { }
+
             base.OnClosing(e);
+        }
+
+        // Inicio con Windows (opcional)
+        private void EnsureStartupEntry()
+        {
+            try
+            {
+                var exe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                if (string.IsNullOrWhiteSpace(exe)) return;
+
+                using var key = Registry.CurrentUser.OpenSubKey(
+                    @"Software\Microsoft\Windows\CurrentVersion\Run", writable: true);
+                if (key is null) return;
+
+                var name = AppInfo.ProductName ?? "NuvAI FS";
+                var existing = key.GetValue(name) as string;
+
+                if (string.IsNullOrEmpty(existing) || !existing.Contains(exe, StringComparison.OrdinalIgnoreCase))
+                {
+                    key.SetValue(name, $"\"{exe}\"");
+                }
+            }
+            catch { }
         }
     }
 }

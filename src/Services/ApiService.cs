@@ -50,17 +50,17 @@ namespace NuvAI_FS.Src.Services
             if (string.IsNullOrWhiteSpace(accdbPath) || !System.IO.File.Exists(accdbPath))
                 throw new InvalidOperationException("ACCDB no configurada. Ejecuta el Setup para fijar 'DatabasePath'.");
 
-            var db = new CoreServices.OleDbAccdbService(accdbPath);
-            var ui = new CoreServices.WpfUiNotifier();
+            var db = new OleDbAccdbService(accdbPath);
+            var ui = new WpfUiNotifier();
 
             // Registrar endpoints (añade aquí los nuevos cuando los crees)
             _router = new EndpointRouter(new IApiEndpoint[]
             {
-                new CargaTablaEndpoint(db, ui),
-                // new LanzarConsultaEndpoint(db, ui),
-                // new EscribirRegistroEndpoint(db, ui),
-                // new ActualizarRegistroEndpoint(db, ui),
-                // new ArticulosImagenEndpoint(db, ui),
+                new CargaTabla(db, ui),
+                new LanzarConsulta(db),
+                new EscribirRegistro(db),
+                new ActualizarRegistro(db),
+                // new ArticulosImagen(db, ui),
             });
 
             // ===== Arranque del listener con fallback de puertos =====
