@@ -1,4 +1,4 @@
-﻿// Presentation/Views/LicenseWindow.xaml.cs
+﻿// Src\Presentation\Views\LicenseWindow.xaml.cs
 using NuvAI_FS.Src.Services;
 using System.Text.RegularExpressions;
 using System.Windows;

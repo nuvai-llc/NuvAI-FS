@@ -1,12 +1,14 @@
 ﻿// Src/Presentation/Views/SettingsWindow.xaml.cs
 using System;
 using System.Linq;
+using System.Runtime.Versioning;
 using System.Windows;
 using System.Windows.Controls;
 using NuvAI_FS.Src.Presentation.Views.Settings;
 
 namespace NuvAI_FS.Src.Presentation.Views
 {
+    [SupportedOSPlatform("windows")]
     public partial class SettingsWindow : Window
     {
         private bool _navReady = false;

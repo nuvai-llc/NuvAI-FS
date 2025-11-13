@@ -5,7 +5,7 @@ namespace NuvAI_FS.Src.Common
 {
     public static class AppInfo
     {
-        public const string SemVer = "1.0.20";     // único sitio a tocar
+        public const string SemVer = "1.0.21";     // único sitio a tocar
         public const string FileVer = SemVer + ".0";
         public const string AssemblyVer = SemVer + ".0";
 

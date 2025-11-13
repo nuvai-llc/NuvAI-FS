@@ -1,4 +1,5 @@
-﻿#nullable enable
+﻿// Src\Presentation\Views\MainWindow.xaml.cs
+#nullable enable
 using Microsoft.Win32;
 using NuvAI_FS.Src.Common;
 using NuvAI_FS.Src.Infrastructure.Notifications;
@@ -78,14 +79,17 @@ namespace NuvAI_FS
                 case ServiceState.Running:
                     Led.Fill = LedGreen;
                     InfoText.Text = string.IsNullOrWhiteSpace(message) ? "Corriendo" : message!;
+                    InfoText.ToolTip = string.IsNullOrWhiteSpace(message) ? "Corriendo" : message!;
                     break;
                 case ServiceState.Error:
                     Led.Fill = LedRed;
                     InfoText.Text = string.IsNullOrWhiteSpace(message) ? "Error" : message!;
+                    InfoText.ToolTip = string.IsNullOrWhiteSpace(message) ? "Error" : message!;
                     break;
                 default:
                     Led.Fill = LedYellow;
                     InfoText.Text = string.IsNullOrWhiteSpace(message) ? "Iniciando…" : message!;
+                    InfoText.ToolTip = string.IsNullOrWhiteSpace(message) ? "Iniciando…" : message!;
                     break;
             }
         }
@@ -243,14 +247,14 @@ namespace NuvAI_FS
                         var notas = string.IsNullOrWhiteSpace(latest.notes) ? "—" : latest.notes;
 
                         var msg =
-$@"Se ha encontrado una nueva versión:
+                                $@"Se ha encontrado una nueva versión:
 
-Versión:   {latest.version}
-Publicada: {fecha}
-Notas:     {notas}
+                                Versión:   {latest.version}
+                                Publicada: {fecha}
+                                Notas:     {notas}
 
-¿Deseas descargar e instalar ahora?
-(la aplicación se reiniciará)";
+                                ¿Deseas descargar e instalar ahora?
+                                (la aplicación se reiniciará)";
 
                         var yes = MessageBox.Show(this, msg, "Nueva versión disponible",
                             MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
@@ -346,6 +350,7 @@ Notas:     {notas}
                     await _frp.StartAsync();
 
                     TxtUrl.Text = _frp.PublicUrl;
+                    TxtUrl.ToolTip = "Haz clic para copiar al portapapeles";
 
                     SetServiceState(ServiceState.Running, "Servicio activo (túnel OK)");
                     NotificationService.ShowInfo("Servicio activo", "El túnel está operativo.");
@@ -454,6 +459,30 @@ Notas:     {notas}
                 }
             }
             catch { }
+        }
+
+        private void Restart_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            try
+            {
+                var exe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                if (!string.IsNullOrWhiteSpace(exe))
+                {
+                    var psi = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = $"/c timeout /t 1 /nobreak > NUL & start \"\" \"{exe}\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                    };
+                    System.Diagnostics.Process.Start(psi);
+                }
+            }
+            catch { /* noop */ }
+
+            try { Close(); } catch { }
+            try { Application.Current.Shutdown(); } catch { }
         }
     }
 }

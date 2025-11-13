@@ -1,4 +1,4 @@
-﻿// Infrastructure/Services/LicenseService.cs
+﻿// Src\Services\LicenseService.cs
 using Microsoft.Win32;
 using System.Net;
 using System.Net.Http;
@@ -53,7 +53,7 @@ namespace NuvAI_FS.Src.Services
 
         public LicenseService(string? backendBaseUrl = null)
         {
-            _baseUrl = (backendBaseUrl ?? Environment.GetEnvironmentVariable("BACKEND_BASE_URL") ?? "https://nuvai-fs-backend-production.up.railway.app/").TrimEnd('/');
+            _baseUrl = (backendBaseUrl ?? Environment.GetEnvironmentVariable("BACKEND_BASE_URL") ?? "https://license.nuvai.es/").TrimEnd('/');
         }
 
         // ========== PÚBLICO (se mantienen las firmas) ==========
