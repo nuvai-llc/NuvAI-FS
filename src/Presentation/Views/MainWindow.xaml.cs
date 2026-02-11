@@ -427,7 +427,6 @@ Notas:     {notas}
 
         private static TimeSpan ComputeBackoff(int attempt)
         {
-            // 5s, 10s, 20s, 30s, 45s, 60s... (tope 60s)
             // No uses exponencial infinito: con túneles y DB suele ser “en algún momento aparece”
             if (attempt <= 0) return TimeSpan.FromSeconds(5);
 
