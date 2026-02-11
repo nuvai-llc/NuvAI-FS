@@ -9,6 +9,7 @@ using NuvAI_FS.Src.Services;
 using System;
 using System.Linq;
 using System.Runtime.Versioning;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -33,6 +34,11 @@ namespace NuvAI_FS
         private ApiService? _apiService;
         private FrpManager? _frp;
 
+        // ===== Retry loop =====
+        private CancellationTokenSource? _startLoopCts;
+        private Task? _startLoopTask;
+        private int _attempt;
+
         // Cierre real (lo pedirá TrayService → ITrayAware)
         private bool _realExit = false;
 
@@ -53,8 +59,6 @@ namespace NuvAI_FS
                     {
                         ShowInTaskbar = false;
                         Hide();
-
-                        // Una sola vez, un aviso sutil (opcional)
                         NotificationService.ShowInfo("NuvAI FS", "Sigue ejecutándose en segundo plano.");
                     }
                     catch { /* noop */ }
@@ -247,14 +251,14 @@ namespace NuvAI_FS
                         var notas = string.IsNullOrWhiteSpace(latest.notes) ? "—" : latest.notes;
 
                         var msg =
-                                $@"Se ha encontrado una nueva versión:
+$@"Se ha encontrado una nueva versión:
 
-                                Versión:   {latest.version}
-                                Publicada: {fecha}
-                                Notas:     {notas}
+Versión:   {latest.version}
+Publicada: {fecha}
+Notas:     {notas}
 
-                                ¿Deseas descargar e instalar ahora?
-                                (la aplicación se reiniciará)";
+¿Deseas descargar e instalar ahora?
+(la aplicación se reiniciará)";
 
                         var yes = MessageBox.Show(this, msg, "Nueva versión disponible",
                             MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
@@ -293,60 +297,68 @@ namespace NuvAI_FS
         }
 
         // ===== Carga inicial =====
-        private async void Window_Loaded(object sender, RoutedEventArgs e)
+        private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            SetServiceState(ServiceState.Starting, "Iniciando…");
+            // Arrancamos un loop infinito de start/retry
+            _startLoopCts?.Cancel();
+            _startLoopCts = new CancellationTokenSource();
+            _attempt = 0;
 
-            // 1) Resolver URL
-            try
+            _startLoopTask = StartOrRetryLoopAsync(_startLoopCts.Token);
+        }
+
+        private async Task StartOrRetryLoopAsync(CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested)
             {
-                string? baseUrl = null;
-                try { baseUrl = RegistryService.GetAppKeyString("BaseUrl"); } catch { }
-
-                if (!string.IsNullOrWhiteSpace(baseUrl))
-                {
-                    SetClientUrl(clientId: null, baseUrl: baseUrl);
-                }
-                else
-                {
-                    var clientId = ResolveClientId() ?? "cliente";
-                    var composedUrl = BuildUrlFromClientId(clientId);
-                    try { RegistryService.SetAppKey("BaseUrl", composedUrl); } catch { }
-                    SetClientUrl(clientId: clientId, baseUrl: null);
-                }
-            }
-            catch
-            {
-                SetClientUrl(clientId: null, baseUrl: null);
-            }
-
-            // 2) Iniciar API local y frp...
-            try
-            {
-                SetServiceState(ServiceState.Starting, "Inicializando API…");
-
-                _apiService = new ApiService(port: 5137);
-
-                await Task.Delay(3000);
-
-                await _apiService.StartAsync();
-
-                var healthy = await _apiService.WaitHealthyAsync(TimeSpan.FromSeconds(5));
-                if (!healthy)
-                {
-                    SetServiceState(ServiceState.Error, "API iniciada pero sin respuesta /health");
-                    return;
-                }
-
-                SetServiceState(ServiceState.Starting, "API OK. Levantando túnel…");
-
                 try
                 {
-                    var clientId = ResolveClientId() ?? "cliente";
+                    SetServiceState(ServiceState.Starting, _attempt == 0 ? "Iniciando…" : $"Reintentando… (intento {_attempt + 1})");
+
+                    // 1) Resolver URL (como ya hacías)
+                    try
+                    {
+                        string? baseUrl = null;
+                        try { baseUrl = RegistryService.GetAppKeyString("BaseUrl"); } catch { }
+
+                        if (!string.IsNullOrWhiteSpace(baseUrl))
+                        {
+                            SetClientUrl(clientId: null, baseUrl: baseUrl);
+                        }
+                        else
+                        {
+                            var clientId = ResolveClientId() ?? "cliente";
+                            var composedUrl = BuildUrlFromClientId(clientId);
+                            try { RegistryService.SetAppKey("BaseUrl", composedUrl); } catch { }
+                            SetClientUrl(clientId: clientId, baseUrl: null);
+                        }
+                    }
+                    catch
+                    {
+                        SetClientUrl(clientId: null, baseUrl: null);
+                    }
+
+                    // 2) Intentar levantar servicios
+                    await EnsureStoppedAsync(); // por si venimos de un intento previo
+
+                    SetServiceState(ServiceState.Starting, "Inicializando API…");
+
+                    _apiService = new ApiService(port: 5137);
+
+                    // Si quieres mantener tu delay, ok, pero que sea cancelable
+                    await Task.Delay(3000, ct);
+
+                    await _apiService.StartAsync();
+                    var healthy = await _apiService.WaitHealthyAsync(TimeSpan.FromSeconds(5));
+                    if (!healthy)
+                        throw new InvalidOperationException("API iniciada pero sin respuesta /health");
+
+                    SetServiceState(ServiceState.Starting, "API OK. Levantando túnel…");
+
+                    var clientId2 = ResolveClientId() ?? "cliente";
                     var localPort = _apiService.Port;
 
-                    _frp = new FrpManager(clientId: clientId, localPort: localPort);
-
+                    _frp = new FrpManager(clientId: clientId2, localPort: localPort);
                     await _frp.StartAsync();
 
                     TxtUrl.Text = _frp.PublicUrl;
@@ -354,18 +366,82 @@ namespace NuvAI_FS
 
                     SetServiceState(ServiceState.Running, "Servicio activo (túnel OK)");
                     NotificationService.ShowInfo("Servicio activo", "El túnel está operativo.");
+
+                    // Si llegó aquí, salimos del loop (todo OK)
+                    return;
                 }
-                catch (Exception exTunnel)
+                catch (OperationCanceledException)
                 {
-                    SetServiceState(ServiceState.Error, "Túnel frp no pudo iniciarse");
-                    try { InfoText.Text = $"Error túnel: {exTunnel.Message}"; } catch { }
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    // Mostramos error y reintentamos
+                    SetServiceState(ServiceState.Error, $"Fallo al iniciar: {ex.Message}");
+
+                    // Importante: limpiar lo que haya quedado a medias antes del siguiente intento
+                    try { await EnsureStoppedAsync(); } catch { }
+
+                    _attempt++;
+
+                    var delay = ComputeBackoff(_attempt);
+                    try
+                    {
+                        // Mensaje útil sin spam
+                        InfoText.Text = $"Error: {ex.Message} | Reintento en {(int)delay.TotalSeconds}s";
+                        InfoText.ToolTip = InfoText.Text;
+
+                        await Task.Delay(delay, ct);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
                 }
             }
-            catch (Exception ex)
+        }
+
+        private async Task EnsureStoppedAsync()
+        {
+            // Para orden: parar túnel primero, luego API
+            try
             {
-                SetServiceState(ServiceState.Error, "API no pudo iniciarse");
-                try { InfoText.Text = $"Error API: {ex.Message}"; } catch { }
+                if (_frp is not null)
+                {
+                    await _frp.StopAsync();
+                    _frp = null;
+                }
             }
+            catch { /* noop */ }
+
+            try
+            {
+                if (_apiService is not null)
+                {
+                    await _apiService.StopAsync();
+                    _apiService = null;
+                }
+            }
+            catch { /* noop */ }
+        }
+
+        private static TimeSpan ComputeBackoff(int attempt)
+        {
+            // 5s, 10s, 20s, 30s, 45s, 60s... (tope 60s)
+            // No uses exponencial infinito: con túneles y DB suele ser “en algún momento aparece”
+            if (attempt <= 0) return TimeSpan.FromSeconds(5);
+
+            double seconds = attempt switch
+            {
+                1 => 5,
+                2 => 10,
+                3 => 20,
+                4 => 30,
+                5 => 45,
+                _ => 60
+            };
+
+            return TimeSpan.FromSeconds(seconds);
         }
 
         // Resolución de ClientId
@@ -432,8 +508,10 @@ namespace NuvAI_FS
                 return;
             }
 
-            try { if (_frp is not null) await _frp.StopAsync(); } catch { }
-            try { if (_apiService is not null) await _apiService.StopAsync(); } catch { }
+            // Cancelar loop de arranque/reintento
+            try { _startLoopCts?.Cancel(); } catch { }
+
+            try { await EnsureStoppedAsync(); } catch { }
 
             base.OnClosing(e);
         }

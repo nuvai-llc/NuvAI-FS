@@ -1,3 +1,4 @@
+// \NuvAI-FS\Properties\AssemblyInfo.cs
 using NuvAI_FS.Src.Common;
 using System.Reflection;
 using System.Resources;

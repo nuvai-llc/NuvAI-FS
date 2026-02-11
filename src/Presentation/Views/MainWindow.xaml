@@ -39,7 +39,12 @@
     <DockPanel LastChildFill="True">
 
         <!-- Menú superior -->
-        <Menu DockPanel.Dock="Top" Background="White" Padding="0,3" SnapsToDevicePixels="True" >
+        <Menu DockPanel.Dock="Top"
+              Background="White"
+              Padding="0,3"
+              SnapsToDevicePixels="True"
+              AutomationProperties.Name="Menú principal">
+
 
             <MenuItem Header="_Ajustes" Padding="5,4">
                 <MenuItem Header="_Configuración" Command="{x:Static ApplicationCommands.Properties}"/>
@@ -87,19 +92,24 @@
 
             <!-- URL de solo lectura (copiable al hacer click) -->
             <TextBox x:Name="TxtUrl"
-                     Grid.Row="0" Grid.Column="2"
-                     IsReadOnly="True"
-                     Text="https://&lt;id-de-cliente&gt;.clients.nuvai.es"
-                     BorderBrush="#DDDDDD"
-                     Opacity="0.5"
-                     GotFocus="TxtUrl_GotFocus"
-                     PreviewMouseLeftButtonDown="TxtUrl_PreviewMouseLeftButtonDown"
-                     MouseLeftButtonUp="TxtUrl_MouseLeftButtonUp"
-                     Cursor="Hand"
-                     ToolTip="Click para copiar la URL"
-                     Padding="6"
-                     HorizontalContentAlignment="Left"
-                     VerticalContentAlignment="Center" Grid.ColumnSpan="2" Margin="0,0,0,5"/>
+                Grid.Row="0" Grid.Column="2"
+                IsReadOnly="True"
+                Text="https://&lt;id-de-cliente&gt;.clients.nuvai.es"
+                BorderBrush="#DDDDDD"
+                Opacity="0.5"
+                GotFocus="TxtUrl_GotFocus"
+                PreviewMouseLeftButtonDown="TxtUrl_PreviewMouseLeftButtonDown"
+                MouseLeftButtonUp="TxtUrl_MouseLeftButtonUp"
+                Cursor="Hand"
+                ToolTip="Click para copiar la URL"
+                AutomationProperties.Name="URL pública del cliente"
+                AutomationProperties.HelpText="Haz clic para copiar la URL al portapapeles"
+                Padding="6"
+                HorizontalContentAlignment="Left"
+                VerticalContentAlignment="Center"
+                Grid.ColumnSpan="2"
+                Margin="0,0,0,5"/>
+
 
             <!-- Texto de información (debajo del input) -->
             <TextBlock x:Name="InfoText"
@@ -112,7 +122,7 @@
                        ToolTipService.ShowDuration="60000" Margin="0,4,0,0" Grid.RowSpan="2">
                 <TextBlock.ToolTip>
                     <!-- tooltip con el texto completo -->
-                    <ToolTip Content="{Binding Text, RelativeSource={RelativeSource AncestorType=TextBlock}}"/>
+                    <ToolTip Content="{Binding PlacementTarget.Text, RelativeSource={RelativeSource Self}}"/>
                 </TextBlock.ToolTip>
             </TextBlock>
         </Grid>

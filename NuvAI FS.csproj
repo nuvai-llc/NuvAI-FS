@@ -39,13 +39,10 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
   </ItemGroup>
 
-  <!-- Asegura que NO se trate como XAML -->
   <ItemGroup>
     <Page Remove="AssemblyInfo.cs" />
     <Resource Remove="AssemblyInfo.cs" />
     <ApplicationDefinition Remove="AssemblyInfo.cs" />
-    <!-- Opcional: forzar como código (en realidad no hace falta) -->
-    <!-- <Compile Include="Properties\AssemblyInfo.cs" /> -->
   </ItemGroup>
   <ItemGroup>
     <None Remove="Src\Assets\app.ico" />
